@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -62,7 +61,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
                 <Brain className="size-5" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">CognitoLearn</span>
+                <span className="truncate font-semibold">Learnova</span>
                 <span className="truncate text-xs">Adaptive Intelligence</span>
               </div>
             </SidebarMenuButton>
@@ -78,7 +77,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
             <SidebarMenuButton size="lg">
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src="https://picsum.photos/seed/user1/32/32" alt="User" />
-                <AvatarFallback className="rounded-lg">CL</AvatarFallback>
+                <AvatarFallback className="rounded-lg">LN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">Alex Johnson</span>

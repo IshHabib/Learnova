@@ -1,10 +1,9 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'CognitoLearn | AI-Powered Adaptive Classroom',
+  title: 'Learnova | AI-Powered Adaptive Classroom',
   description: 'The next generation of intelligent educational platforms.',
 };
 

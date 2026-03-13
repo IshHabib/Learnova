@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -34,7 +33,7 @@ export default function LoginPage() {
             <Brain className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-headline">Welcome back</CardTitle>
-          <CardDescription>Enter your credentials to access CognitoLearn</CardDescription>
+          <CardDescription>Enter your credentials to access Learnova</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="student" onValueChange={setRole} className="w-full mb-6">

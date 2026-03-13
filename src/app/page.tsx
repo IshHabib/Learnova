@@ -10,7 +10,7 @@ export default function LandingPage() {
         <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <Brain className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold font-headline text-foreground">CognitoLearn</span>
+            <span className="text-xl font-bold font-headline text-foreground">Learnova</span>
           </div>
           <nav className="hidden md:flex gap-6">
             <Link href="#features" className="text-sm font-medium hover:text-primary transition-colors">Features</Link>
@@ -33,11 +33,11 @@ export default function LandingPage() {
           <div className="container px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
               <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium bg-secondary text-secondary-foreground">
-                <Zap className="mr-2 h-4 w-4" />
+                < Zap className="mr-2 h-4 w-4" />
                 <span>Next-Gen Adaptive Learning</span>
               </div>
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-foreground font-headline">
-                Empower Every Mind with <span className="text-primary">CognitoLearn</span>
+                Empower Every Mind with <span className="text-primary">Learnova</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl">
                 The AI-powered adaptive classroom intelligence platform that personalizes learning for students and provides deep insights for educators.
@@ -92,9 +92,9 @@ export default function LandingPage() {
         <div className="container px-4 sm:px-6 lg:px-8 text-center text-muted-foreground">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Brain className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold font-headline text-foreground">CognitoLearn</span>
+            <span className="text-lg font-bold font-headline text-foreground">Learnova</span>
           </div>
-          <p className="text-sm">© 2024 CognitoLearn AI. All rights reserved.</p>
+          <p className="text-sm">© 2024 Learnova AI. All rights reserved.</p>
         </div>
       </footer>
     </div>
