@@ -1,9 +1,6 @@
 /**
  * @deprecated Use hooks from '@/firebase' instead (e.g., useAuth, useFirestore).
- * This file is maintained for backward compatibility during migration.
+ * This file is deprecated to avoid multiple redundant initializations.
  */
-import { initializeFirebase } from '@/firebase';
-
-const { auth, firestore: db } = initializeFirebase();
-
-export { auth, db };
+export const db = null;
+export const auth = null;

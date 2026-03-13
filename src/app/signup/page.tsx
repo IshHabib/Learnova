@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -30,6 +29,8 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!auth || !db) return;
+    
     setIsLoading(true)
     
     try {
@@ -50,10 +51,11 @@ export default function SignupPage() {
         pendingTasks: 5
       }
 
+      // Aligned with backend.json schema and firestore.rules
       await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
+        id: user.uid,
         email,
-        displayName: fullName,
+        name: fullName,
         role: role,
         createdAt: new Date().toISOString(),
         stats: initialStats
