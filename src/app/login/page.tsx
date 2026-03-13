@@ -29,6 +29,8 @@ export default function LoginPage() {
     setIsLoading(true)
     
     try {
+      if (!auth) throw new Error("Firebase Auth not initialized")
+      
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid))
       
@@ -85,7 +87,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link href="/forgot-password" size="sm" className="text-xs text-primary hover:underline">
+                <Link href="#" className="text-xs text-primary hover:underline">
                   Forgot password?
                 </Link>
               </div>

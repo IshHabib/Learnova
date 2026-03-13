@@ -30,12 +30,13 @@ export default function SignupPage() {
     setIsLoading(true)
     
     try {
+      if (!auth) throw new Error("Firebase Auth not initialized")
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       
       await updateProfile(user, { displayName: fullName })
       
-      // Initialize with some demo data to make it look "live" immediately
       const initialStats = role === "student" ? {
         averageGrade: 85,
         classesAttended: 12,
