@@ -57,7 +57,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Welcome back</CardTitle>
           <CardDescription>Enter your credentials to access Learnova</CardDescription>
-        </Header>
+        </CardHeader>
         <CardContent>
           <Tabs defaultValue="student" onValueChange={setRole} className="w-full mb-6">
             <TabsList className="grid w-full grid-cols-2">
