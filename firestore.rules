@@ -12,33 +12,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isTeacher(teacherId) {
-      return isSignedIn() && request.auth.uid == teacherId;
-    }
-
-    function isParticipant(participants) {
-      return isSignedIn() && (request.auth.uid in participants);
-    }
-
     // --- Collection Rules ---
 
     // User profiles
     match /users/{userId} {
       allow get, list: if isSignedIn();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-
-      // Quiz attempts subcollection
-      match /quizAttempts/{attemptId} {
-        // Handled by the recursive wildcard below for collectionGroup support
-      }
+      allow create, update: if isOwner(userId);
     }
 
-    // Generic match for all quizAttempts (supports collectionGroup)
+    // Quiz attempts (supports collectionGroup)
     match /{path=**}/quizAttempts/{attemptId} {
-      allow get, list: if isSignedIn() && (
-        (exists(resource.data.studentId) && request.auth.uid == resource.data.studentId) || 
-        (exists(resource.data.teacherId) && request.auth.uid == resource.data.teacherId)
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        resource.data.teacherId == request.auth.uid
       );
       allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
     }
@@ -56,9 +42,9 @@ service cloud.firestore {
 
     // Notes (supports collectionGroup)
     match /{path=**}/notes/{noteId} {
-      allow get, list: if isSignedIn() && (
-        (resource.data.classTeacherId == request.auth.uid) || 
-        (request.auth.uid in resource.data.classStudentIds)
+      allow read: if isSignedIn() && (
+        resource.data.classTeacherId == request.auth.uid || 
+        request.auth.uid in resource.data.classStudentIds
       );
       allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
@@ -66,9 +52,9 @@ service cloud.firestore {
 
     // Videos (supports collectionGroup)
     match /{path=**}/videos/{videoId} {
-      allow get, list: if isSignedIn() && (
-        (resource.data.classTeacherId == request.auth.uid) || 
-        (request.auth.uid in resource.data.classStudentIds)
+      allow read: if isSignedIn() && (
+        resource.data.classTeacherId == request.auth.uid || 
+        request.auth.uid in resource.data.classStudentIds
       );
       allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
@@ -76,9 +62,9 @@ service cloud.firestore {
 
     // Quizzes (supports collectionGroup)
     match /{path=**}/quizzes/{quizId} {
-      allow get, list: if isSignedIn() && (
-        (resource.data.classTeacherId == request.auth.uid) || 
-        (request.auth.uid in resource.data.classStudentIds)
+      allow read: if isSignedIn() && (
+        resource.data.classTeacherId == request.auth.uid || 
+        request.auth.uid in resource.data.classStudentIds
       );
       allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
@@ -86,9 +72,9 @@ service cloud.firestore {
 
     // Study Groups (supports collectionGroup)
     match /{path=**}/studyGroups/{groupId} {
-      allow get, list: if isSignedIn() && (
-        (resource.data.classTeacherId == request.auth.uid) || 
-        (request.auth.uid in resource.data.studentIds)
+      allow read: if isSignedIn() && (
+        resource.data.classTeacherId == request.auth.uid || 
+        request.auth.uid in resource.data.studentIds
       );
       allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
@@ -101,9 +87,9 @@ service cloud.firestore {
       allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
     }
 
-    // Messages
+    // Messages (supports collectionGroup)
     match /{path=**}/messages/{messageId} {
-      allow get, list: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
       allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
     }
   }
