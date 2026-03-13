@@ -9,18 +9,13 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-const chartData = [
-  { month: "Jan", score: 65, average: 72 },
-  { month: "Feb", score: 70, average: 71 },
-  { month: "Mar", score: 68, average: 73 },
-  { month: "Apr", score: 85, average: 72 },
-  { month: "May", score: 82, average: 74 },
-  { month: "Jun", score: 92, average: 75 },
-]
+interface PerformanceChartProps {
+  data?: { name: string; score: number; average?: number }[]
+}
 
-const chartConfig = {
+const defaultChartConfig = {
   score: {
-    label: "My Score",
+    label: "Score",
     color: "hsl(var(--primary))",
   },
   average: {
@@ -29,53 +24,64 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function PerformanceChart() {
+export function PerformanceChart({ data }: PerformanceChartProps) {
+  // Use provided data or an empty array if loading/missing
+  const displayData = data && data.length > 0 ? data : []
+
   return (
     <div className="h-[350px] w-full">
-      <ChartContainer config={chartConfig}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{
-              top: 20,
-              right: 20,
-              left: 0,
-              bottom: 0,
-            }}
-          >
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-              domain={[0, 100]}
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Line
-              type="monotone"
-              dataKey="score"
-              stroke="var(--color-score)"
-              strokeWidth={3}
-              dot={{ r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="average"
-              stroke="var(--color-average)"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </ChartContainer>
+      {displayData.length === 0 ? (
+        <div className="flex h-full items-center justify-center border-2 border-dashed rounded-lg bg-muted/10">
+          <p className="text-sm text-muted-foreground">No performance data available yet.</p>
+        </div>
+      ) : (
+        <ChartContainer config={defaultChartConfig}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={displayData}
+              margin={{
+                top: 20,
+                right: 20,
+                left: 0,
+                bottom: 0,
+              }}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                domain={[0, 100]}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke="var(--color-score)"
+                strokeWidth={3}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              {displayData[0]?.average !== undefined && (
+                <Line
+                  type="monotone"
+                  dataKey="average"
+                  stroke="var(--color-average)"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      )}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -39,26 +40,14 @@ export default function SignupPage() {
       
       await updateProfile(user, { displayName: fullName })
       
-      const initialStats = role === "student" ? {
-        averageGrade: 85,
-        classesAttended: 12,
-        quizzesCompleted: 8,
-        newMessages: 2
-      } : {
-        totalStudents: 45,
-        avgClassScore: 78,
-        activeLectures: 3,
-        pendingTasks: 5
-      }
-
-      // Aligned with backend.json schema and firestore.rules
+      // Initialize with correct fields from backend.json schema
+      // No fake stats - the dashboard will query actual data
       await setDoc(doc(db, "users", user.uid), {
         id: user.uid,
         email,
         name: fullName,
         role: role,
         createdAt: new Date().toISOString(),
-        stats: initialStats
       })
       
       toast({
