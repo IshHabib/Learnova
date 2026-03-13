@@ -1,0 +1,23 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-education",
+      "description": "Student learning with a laptop",
+      "imageUrl": "https://picsum.photos/seed/edtech1/1200/800",
+      "imageHint": "student learning"
+    },
+    {
+      "id": "classroom-scene",
+      "description": "Modern classroom environment",
+      "imageUrl": "https://picsum.photos/seed/edtech2/800/600",
+      "imageHint": "modern classroom"
+    },
+    {
+      "id": "teacher-dashboard",
+      "description": "Teacher using a dashboard",
+      "imageUrl": "https://picsum.photos/seed/edtech3/800/600",
+      "imageHint": "teacher dashboard"
+    }
+  ]
+}
