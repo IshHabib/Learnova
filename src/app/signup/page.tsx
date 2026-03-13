@@ -82,7 +82,7 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Create an account</CardTitle>
           <CardDescription>Join Learnova to start your personalized learning journey</CardDescription>
-        </Header>
+        </CardHeader>
         <CardContent>
           <Tabs defaultValue="student" onValueChange={setRole} className="w-full mb-6">
             <TabsList className="grid w-full grid-cols-2">
