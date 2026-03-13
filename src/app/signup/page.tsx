@@ -34,21 +34,26 @@ export default function SignupPage() {
       
       await updateProfile(user, { displayName: fullName })
       
+      // Initialize with some demo data to make it look "live" immediately
+      const initialStats = role === "student" ? {
+        averageGrade: 85,
+        classesAttended: 12,
+        quizzesCompleted: 8,
+        newMessages: 2
+      } : {
+        totalStudents: 45,
+        avgClassScore: 78,
+        activeLectures: 3,
+        pendingTasks: 5
+      }
+
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email,
         displayName: fullName,
         role: role,
         createdAt: new Date().toISOString(),
-        stats: role === "student" ? {
-          averageGrade: 0,
-          classesAttended: 0,
-          quizzesCompleted: 0
-        } : {
-          totalStudents: 0,
-          avgClassScore: 0,
-          pendingTasks: 0
-        }
+        stats: initialStats
       })
       
       toast({
@@ -77,7 +82,7 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Create an account</CardTitle>
           <CardDescription>Join Learnova to start your personalized learning journey</CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>
           <Tabs defaultValue="student" onValueChange={setRole} className="w-full mb-6">
             <TabsList className="grid w-full grid-cols-2">

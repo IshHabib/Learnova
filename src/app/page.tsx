@@ -7,7 +7,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 mx-auto">
           <div className="flex items-center gap-2">
             <Brain className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold font-headline text-foreground">Learnova</span>
@@ -15,7 +15,6 @@ export default function LandingPage() {
           <nav className="hidden md:flex gap-6">
             <Link href="#features" className="text-sm font-medium hover:text-primary transition-colors">Features</Link>
             <Link href="#solutions" className="text-sm font-medium hover:text-primary transition-colors">Solutions</Link>
-            <Link href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</Link>
           </nav>
           <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
@@ -30,10 +29,10 @@ export default function LandingPage() {
 
       <main className="flex-1">
         <section className="relative overflow-hidden pt-16 pb-24 lg:pt-32 lg:pb-40">
-          <div className="container px-4 sm:px-6 lg:px-8">
+          <div className="container px-4 sm:px-6 lg:px-8 mx-auto">
             <div className="flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
               <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium bg-secondary text-secondary-foreground">
-                < Zap className="mr-2 h-4 w-4" />
+                <Zap className="mr-2 h-4 w-4" />
                 <span>Next-Gen Adaptive Learning</span>
               </div>
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-foreground font-headline">
@@ -49,7 +48,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="h-12 px-8 text-lg" asChild>
-                  <Link href="/demo">Request a Demo</Link>
+                  <Link href="/signup">Request a Demo</Link>
                 </Button>
               </div>
             </div>
@@ -57,7 +56,7 @@ export default function LandingPage() {
         </section>
 
         <section id="features" className="py-24 bg-card">
-          <div className="container px-4 sm:px-6 lg:px-8">
+          <div className="container px-4 sm:px-6 lg:px-8 mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold font-headline mb-4">Features Built for Modern Education</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">We use advanced AI to bridge the gap between teaching and understanding.</p>
@@ -76,10 +75,10 @@ export default function LandingPage() {
                     <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                       <feature.icon className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="font-headline">{feature.title}</CardTitle>
+                    <CardTitle className="font-headline text-lg">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">{feature.description}</p>
+                    <p className="text-muted-foreground text-sm">{feature.description}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -89,7 +88,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="bg-card border-t py-12">
-        <div className="container px-4 sm:px-6 lg:px-8 text-center text-muted-foreground">
+        <div className="container px-4 sm:px-6 lg:px-8 text-center text-muted-foreground mx-auto">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Brain className="h-6 w-6 text-primary" />
             <span className="text-lg font-bold font-headline text-foreground">Learnova</span>
