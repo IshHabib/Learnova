@@ -1,37 +1,50 @@
-
 'use client';
 
+import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { firebaseConfig } from './config';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore'
 
-/**
- * Initializes Firebase services.
- * Checks for existing apps to prevent multiple initialization.
- * Also validates that the config is present to avoid runtime crashes.
- */
+// IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
-  let app: FirebaseApp;
-  
-  // Basic validation to prevent crashing if environment variables aren't loaded yet
-  const isValidConfig = firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined';
-
   if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApp();
+    // Important! initializeApp() is called without any arguments because Firebase App Hosting
+    // integrates with the initializeApp() function to provide the environment variables needed to
+    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
+    // without arguments.
+    let firebaseApp;
+    try {
+      // Attempt to initialize via Firebase App Hosting environment variables
+      firebaseApp = initializeApp();
+    } catch (e) {
+      // Only warn in production because it's normal to use the firebaseConfig to initialize
+      // during development
+      if (process.env.NODE_ENV === "production") {
+        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
+      }
+      firebaseApp = initializeApp(firebaseConfig);
+    }
+
+    return getSdks(firebaseApp);
   }
 
-  // Only initialize services if we have a valid config, otherwise return nulls
-  // This allows the Provider to mount without crashing the entire app tree.
-  const auth = isValidConfig ? getAuth(app) : (null as unknown as Auth);
-  const firestore = isValidConfig ? getFirestore(app) : (null as unknown as Firestore);
+  // If already initialized, return the SDKs with the already initialized App
+  return getSdks(getApp());
+}
 
-  return { app, auth, firestore };
+export function getSdks(firebaseApp: FirebaseApp) {
+  return {
+    firebaseApp,
+    auth: getAuth(firebaseApp),
+    firestore: getFirestore(firebaseApp)
+  };
 }
 
 export * from './provider';
-export * from './auth/use-user';
-export * from './firestore/use-doc';
+export * from './client-provider';
 export * from './firestore/use-collection';
+export * from './firestore/use-doc';
+export * from './non-blocking-updates';
+export * from './non-blocking-login';
+export * from './errors';
+export * from './error-emitter';
