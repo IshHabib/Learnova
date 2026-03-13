@@ -1,19 +1,33 @@
 
 "use client"
 
+import { useState } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Users, Calendar, Settings, MoreVertical } from "lucide-react"
-import { collection, query, where } from "firebase/firestore"
+import { Plus, Users, Calendar, MoreVertical, Loader2 } from "lucide-react"
+import { collection, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function TeacherClassesPage() {
   const { user } = useUser()
   const db = useFirestore()
+  const [isCreating, setIsCreating] = useState(false)
+  const [newClass, setNewClass] = useState({ name: "", subject: "", description: "" })
 
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -21,6 +35,29 @@ export default function TeacherClassesPage() {
   }, [db, user?.uid])
 
   const { data: myClasses, isLoading } = useCollection(classesQuery)
+
+  const handleCreateClass = async () => {
+    if (!user || !newClass.name || !newClass.subject) return
+    setIsCreating(true)
+    try {
+      const classRef = doc(collection(db, "classes"))
+      await setDoc(classRef, {
+        id: classRef.id,
+        name: newClass.name,
+        subject: newClass.subject,
+        description: newClass.description,
+        teacherId: user.uid,
+        studentIds: [],
+        creationDate: new Date().toISOString(),
+        createdAt: serverTimestamp()
+      })
+      setNewClass({ name: "", subject: "", description: "" })
+    } catch (error) {
+      console.error("Error creating class:", error)
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -30,10 +67,57 @@ export default function TeacherClassesPage() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold font-headline">Classroom Management</h1>
-            <Button size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Class
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Class
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Class</DialogTitle>
+                  <DialogDescription>
+                    Set up a new digital classroom for your students.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Class Name</Label>
+                    <Input 
+                      id="name" 
+                      placeholder="e.g. Advanced Mathematics Section A" 
+                      value={newClass.name}
+                      onChange={(e) => setNewClass({...newClass, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input 
+                      id="subject" 
+                      placeholder="e.g. Mathematics" 
+                      value={newClass.subject}
+                      onChange={(e) => setNewClass({...newClass, subject: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea 
+                      id="description" 
+                      placeholder="Briefly describe what students will learn..." 
+                      value={newClass.description}
+                      onChange={(e) => setNewClass({...newClass, description: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleCreateClass} disabled={isCreating || !newClass.name || !newClass.subject}>
+                    {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Classroom
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
         <main className="p-4 md:p-6 lg:p-8">
@@ -55,7 +139,6 @@ export default function TeacherClassesPage() {
               </div>
               <h3 className="text-lg font-bold">No active classes</h3>
               <p className="text-muted-foreground mb-6">Start by creating your first digital classroom.</p>
-              <Button>Get Started</Button>
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -81,12 +164,12 @@ export default function TeacherClassesPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        <span>Mon / Wed</span>
+                        <span>Created {cls.creationDate ? format(new Date(cls.creationDate), "MMM d") : "recently"}</span>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="flex-1">Manage</Button>
-                      <Button size="sm" className="flex-1">Go Live</Button>
+                      <Button size="sm" className="flex-1">Add Content</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -98,3 +181,5 @@ export default function TeacherClassesPage() {
     </SidebarProvider>
   )
 }
+
+import { format } from "date-fns"

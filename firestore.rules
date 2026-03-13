@@ -2,180 +2,109 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * COGNITOLERN SECURITY RULES DOCUMENTATION
-     *
-     * Core Philosophy: 
-     * This ruleset implements a strict authorization model based on roles (Student/Teacher) 
-     * and document ownership. It leverages data denormalization to ensure that security 
-     * decisions are performant and independent of complex document lookups.
-     *
-     * Data Structure:
-     * - /users: Root-level user profiles, keyed by Firebase Auth UID.
-     * - /classes: Root-level collection for class data.
-     * - /classes/{classId}/[notes|videos|quizzes|studyGroups]: Subcollections containing class-specific content.
-     * - /users/{userId}/quizAttempts: User-owned history of quiz performance.
-     * - /chatSessions: Shared private communication channels.
-     *
-     * Key Security Decisions:
-     * 1. Authorization Independence: Critical fields (like teacherId and participantIds) are 
-     *    denormalized onto child documents to avoid expensive get() calls in rules.
-     * 2. Role-Based Access: Teachers have administrative control over class content, 
-     *    while students are restricted to member-only access.
-     * 3. Self-Creation: Users are permitted to create their own profile document 
-     *    immediately upon sign-up to support seamless onboarding.
-     * 4. Query-as-Permissions (QAP): Rules are designed to allow collection group queries 
-     *    by validating that the user is present in denormalized membership arrays.
-     */
-
     // --- Helper Functions ---
 
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the user's UID matches the provided ID. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Verifies ownership and document existence for updates/deletes. */
-    function isExistingOwner(userId) {
-      // For update/delete, 'resource' is always the existing document, so resource != null is implicit.
-      // However, explicitly checking it for clarity is harmless.
-      return resource != null && isOwner(userId);
-    }
-
-    /** @description Checks if the user is a teacher of a class based on a field. */
     function isTeacher(teacherId) {
       return isSignedIn() && request.auth.uid == teacherId;
     }
 
-    /** @description Checks if the user is a participant in a list/array. */
     function isParticipant(participants) {
-      return isSignedIn() && request.auth.uid in participants;
+      return isSignedIn() && (request.auth.uid in participants);
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for user profiles. Users can manage their own data.
-     * @path /users/{userId}
-     * @allow (create) if auth.uid matches userId.
-     * @deny (update) if auth.uid does not match userId.
-     * @principle Path-based ownership and self-creation.
-     */
+    // User profiles
     match /users/{userId} {
       allow get, list: if isSignedIn();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId); // Fixed to use path variable for ownership
-      allow delete: if false; // Profiles generally should not be deleted by clients.
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
 
-      /**
-       * @description User-owned quiz attempts. Students see their own; teachers see attempts for their classes.
-       * @path /users/{studentId}/quizAttempts/{quizAttemptId}
-       * @allow (list) if auth.uid is the studentId.
-       * @deny (create) if studentId field does not match auth.uid.
-       * @principle Authorization independence using denormalized teacherId.
-       */
-      match /quizAttempts/{quizAttemptId} {
-        // Fix: Use 'userId' from the parent path match for studentId ownership
-        allow get, list: if isOwner(userId) || isTeacher(resource.data.teacherId);
-        // Fix: Use 'userId' from the parent path match for studentId ownership
-        allow create: if isOwner(userId) && request.resource.data.studentId == userId;
-        allow update, delete: if false; // Attempts are usually immutable records.
+      // Quiz attempts subcollection
+      match /quizAttempts/{attemptId} {
+        // Handled by the recursive wildcard below for collectionGroup support
       }
     }
 
-    /**
-     * @description Rules for educational classes. Teachers manage; students join.
-     * @path /classes/{classId}
-     * @allow (create) if the user identifies as the teacher in the data.
-     * @deny (update) if the user is not the designated teacherId.
-     * @principle Membership maps (studentIds array) and owner validation.
-     */
+    // Generic match for all quizAttempts (supports collectionGroup)
+    match /{path=**}/quizAttempts/{attemptId} {
+      allow get, list: if isSignedIn() && (
+        (exists(resource.data.studentId) && request.auth.uid == resource.data.studentId) || 
+        (exists(resource.data.teacherId) && request.auth.uid == resource.data.teacherId)
+      );
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+    }
+
+    // Classes
     match /classes/{classId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
-      // isExistingOwner expects a single ID, and here `resource.data.teacherId` is used.
-      // This implicitly checks if `request.auth.uid == resource.data.teacherId`.
-      // The additional check `request.resource.data.teacherId == resource.data.teacherId`
-      // prevents a teacher from changing the class's teacher ID.
-      allow update: if isExistingOwner(resource.data.teacherId) && request.resource.data.teacherId == resource.data.teacherId;
-      allow delete: if isExistingOwner(resource.data.teacherId);
-
-      /**
-       * @description Class content (Notes, Videos, Quizzes). Accessible by class members.
-       * @path /classes/{classId}/[subcollection]/{id}
-       * @allow (get) if user is the teacher or a student in the class.
-       * @deny (create) if user is not the class teacher.
-       * @principle Denormalization for authorization (classTeacherId/classStudentIds).
-       */
-      match /notes/{noteId} {
-        allow get, list: if isTeacher(resource.data.classTeacherId) || isParticipant(resource.data.classStudentIds);
-        allow create: if isTeacher(request.resource.data.classTeacherId);
-        allow update: if isExistingOwner(resource.data.classTeacherId);
-        allow delete: if isExistingOwner(resource.data.classTeacherId);
-      }
-
-      match /videos/{videoId} {
-        allow get, list: if isTeacher(resource.data.classTeacherId) || isParticipant(resource.data.classStudentIds);
-        allow create: if isTeacher(request.resource.data.classTeacherId);
-        allow update: if isExistingOwner(resource.data.classTeacherId);
-        allow delete: if isExistingOwner(resource.data.classTeacherId);
-      }
-
-      match /quizzes/{quizId} {
-        allow get, list: if isTeacher(resource.data.classTeacherId) || isParticipant(resource.data.classStudentIds);
-        allow create: if isTeacher(request.resource.data.classTeacherId);
-        allow update: if isExistingOwner(resource.data.classTeacherId);
-        allow delete: if isExistingOwner(resource.data.classTeacherId);
-      }
-
-      /**
-       * @description Study groups within a class. Managed by teachers, viewed by members.
-       * @path /classes/{classId}/studyGroups/{studyGroupId}
-       * @allow (get) if user is in the studentIds array.
-       * @deny (update) if user is not the teacher overseeing the group.
-       * @principle Closed collaborator shared access.
-       */
-      match /studyGroups/{studyGroupId} {
-        allow get, list: if isTeacher(resource.data.classTeacherId) || isParticipant(resource.data.studentIds);
-        allow create: if isTeacher(request.resource.data.classTeacherId);
-        allow update: if isExistingOwner(resource.data.classTeacherId);
-        allow delete: if isExistingOwner(resource.data.classTeacherId);
-      }
+      allow update: if isSignedIn() && (
+        resource.data.teacherId == request.auth.uid || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds']))
+      );
+      allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
     }
 
-    /**
-     * @description Private messaging sessions. Access restricted to participants.
-     * @path /chatSessions/{chatSessionId}
-     * @allow (get) if auth.uid is in participantIds.
-     * @deny (create) if auth.uid is not in the proposed participantIds.
-     * @principle Shared access via UID array.
-     */
-    match /chatSessions/{chatSessionId} {
-      allow get, list: if isParticipant(resource.data.participantIds);
-      allow create: if isSignedIn() && isParticipant(request.resource.data.participantIds);
-      // Fix: `isExistingOwner` expects a single UID, `participantIds` is an array.
-      // Any participant can update session-level data (e.g., lastMessageTimestamp).
-      allow update: if isParticipant(resource.data.participantIds);
-      allow delete: if false;
+    // Notes (supports collectionGroup)
+    match /{path=**}/notes/{noteId} {
+      allow get, list: if isSignedIn() && (
+        (resource.data.classTeacherId == request.auth.uid) || 
+        (request.auth.uid in resource.data.classStudentIds)
+      );
+      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+    }
 
-      /**
-       * @description Individual messages. Inherits participant check via denormalized field.
-       * @path /chatSessions/{chatSessionId}/messages/{messageId}
-       * @allow (create) if senderId is the auth.uid and they are a session participant.
-       * @principle Relational integrity and path consistency.
-       */
-      match /messages/{messageId} {
-        allow get, list: if isParticipant(resource.data.chatSessionParticipantIds);
-        allow create: if isOwner(request.resource.data.senderId) && isParticipant(request.resource.data.chatSessionParticipantIds);
-        allow update: if isExistingOwner(resource.data.senderId); // Only sender can edit/mark as read (depending on app logic)
-        allow delete: if isExistingOwner(resource.data.senderId);
-      }
+    // Videos (supports collectionGroup)
+    match /{path=**}/videos/{videoId} {
+      allow get, list: if isSignedIn() && (
+        (resource.data.classTeacherId == request.auth.uid) || 
+        (request.auth.uid in resource.data.classStudentIds)
+      );
+      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+    }
+
+    // Quizzes (supports collectionGroup)
+    match /{path=**}/quizzes/{quizId} {
+      allow get, list: if isSignedIn() && (
+        (resource.data.classTeacherId == request.auth.uid) || 
+        (request.auth.uid in resource.data.classStudentIds)
+      );
+      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+    }
+
+    // Study Groups (supports collectionGroup)
+    match /{path=**}/studyGroups/{groupId} {
+      allow get, list: if isSignedIn() && (
+        (resource.data.classTeacherId == request.auth.uid) || 
+        (request.auth.uid in resource.data.studentIds)
+      );
+      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+    }
+
+    // Chat Sessions
+    match /chatSessions/{sessionId} {
+      allow get, list: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
+      allow create: if isSignedIn() && (request.auth.uid in request.resource.data.participantIds);
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
+    }
+
+    // Messages
+    match /{path=**}/messages/{messageId} {
+      allow get, list: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
+      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
     }
   }
 }

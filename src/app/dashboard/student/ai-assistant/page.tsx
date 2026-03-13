@@ -7,28 +7,39 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Brain, Send, User, Sparkles, Wand2, BookText, Lightbulb } from "lucide-react"
+import { Brain, Send, User, Sparkles, Wand2, BookText, Lightbulb, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { aiLearningAssistant } from "@/ai/flows/ai-learning-assistant"
 
 export default function AIAssistantPage() {
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hello! I'm your AI Learning Assistant. How can I help you with your studies today?" }
   ])
   const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSend = () => {
-    if (!input.trim()) return
-    const userMessage = { role: "user", content: input }
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return
+    const userQuery = input.trim()
+    const userMessage = { role: "user", content: userQuery }
     setMessages(prev => [...prev, userMessage])
     setInput("")
+    setIsLoading(true)
     
-    // Simulation: AI Response
-    setTimeout(() => {
+    try {
+      const result = await aiLearningAssistant({ query: userQuery })
       setMessages(prev => [...prev, { 
         role: "assistant", 
-        content: "That's a great question about " + input + ". Based on your course materials, here's a concise explanation..." 
+        content: result.response 
       }])
-    }, 1000)
+    } catch (error) {
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "Sorry, I encountered an error. Please try again later." 
+      }])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -51,11 +62,21 @@ export default function AIAssistantPage() {
                     <Avatar className={`h-8 w-8 rounded-lg shrink-0 ${m.role === "assistant" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                       {m.role === "assistant" ? <Sparkles className="h-4 w-4 m-auto" /> : <User className="h-4 w-4 m-auto" />}
                     </Avatar>
-                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm ${m.role === "assistant" ? "bg-white shadow-sm border" : "bg-primary text-primary-foreground"}`}>
+                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm whitespace-pre-wrap ${m.role === "assistant" ? "bg-white shadow-sm border text-foreground" : "bg-primary text-primary-foreground"}`}>
                       {m.content}
                     </div>
                   </div>
                 ))}
+                {isLoading && (
+                  <div className="flex gap-4">
+                    <Avatar className="h-8 w-8 rounded-lg shrink-0 bg-primary text-primary-foreground">
+                      <Sparkles className="h-4 w-4 m-auto" />
+                    </Avatar>
+                    <div className="p-4 rounded-2xl bg-white shadow-sm border">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    </div>
+                  </div>
+                )}
               </div>
             </ScrollArea>
             <div className="mt-4 max-w-3xl mx-auto w-full">
@@ -66,8 +87,9 @@ export default function AIAssistantPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="Ask me anything..." 
                   className="border-none shadow-none focus-visible:ring-0" 
+                  disabled={isLoading}
                 />
-                <Button size="icon" onClick={handleSend} disabled={!input.trim()}>
+                <Button size="icon" onClick={handleSend} disabled={!input.trim() || isLoading}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -88,19 +110,6 @@ export default function AIAssistantPage() {
                   <span className="text-xs font-bold mb-1">Generate Practice Quiz</span>
                   <p className="text-[10px] text-muted-foreground text-left">Create a 5-question quiz on the current topic.</p>
                 </Button>
-              </div>
-            </div>
-            <div>
-              <h3 className="text-sm font-bold flex items-center gap-2 mb-4">
-                <BookText className="h-4 w-4 text-primary" />
-                Recent Topics
-              </h3>
-              <div className="space-y-2">
-                {["Photosynthesis", "Classical Mechanics", "Microeconomics"].map((topic, i) => (
-                  <div key={i} className="text-xs p-2 rounded bg-muted/50 hover:bg-muted cursor-pointer transition-colors">
-                    {topic}
-                  </div>
-                ))}
               </div>
             </div>
             <div className="mt-auto p-4 rounded-xl bg-primary/5 border border-primary/10">
