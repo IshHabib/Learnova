@@ -1,6 +1,6 @@
-
 "use client"
 
+import { useEffect, useState } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,8 +8,40 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle } from "lucide-react"
+import { onAuthStateChanged } from "firebase/auth"
+import { doc, onSnapshot } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 
 export default function TeacherDashboard() {
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    avgClassScore: 0,
+    activeLectures: 0,
+    pendingTasks: 0
+  })
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
+          if (doc.exists()) {
+            const data = doc.data()
+            if (data.stats) {
+              setStats({
+                totalStudents: data.stats.totalStudents || 0,
+                avgClassScore: data.stats.avgClassScore || 0,
+                activeLectures: data.stats.activeLectures || 0,
+                pendingTasks: data.stats.pendingTasks || 0
+              })
+            }
+          }
+        })
+        return () => unsubscribeDoc()
+      }
+    })
+    return () => unsubscribeAuth()
+  }, [])
+
   return (
     <SidebarProvider>
       <AppSidebar role="teacher" />
@@ -34,8 +66,8 @@ export default function TeacherDashboard() {
                 <Users className="h-4 w-4 opacity-70" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">156</div>
-                <p className="text-xs opacity-70">Across 4 classes</p>
+                <div className="text-2xl font-bold">{stats.totalStudents}</div>
+                <p className="text-xs opacity-70">Across your classes</p>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-none">
@@ -44,8 +76,8 @@ export default function TeacherDashboard() {
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">76.2%</div>
-                <Progress value={76.2} className="mt-2" />
+                <div className="text-2xl font-bold">{stats.avgClassScore}%</div>
+                <Progress value={stats.avgClassScore} className="mt-2" />
               </CardContent>
             </Card>
             <Card className="shadow-sm border-none">
@@ -54,8 +86,8 @@ export default function TeacherDashboard() {
                 <Video className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">2 Live</div>
-                <p className="text-xs text-muted-foreground">Biology 101, Chem 202</p>
+                <div className="text-2xl font-bold">{stats.activeLectures} Live</div>
+                <p className="text-xs text-muted-foreground">Happening now</p>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-none">
@@ -64,8 +96,8 @@ export default function TeacherDashboard() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">8</div>
-                <p className="text-xs text-muted-foreground">Quizzes to grade</p>
+                <div className="text-2xl font-bold">{stats.pendingTasks}</div>
+                <p className="text-xs text-muted-foreground">Items to grade</p>
               </CardContent>
             </Card>
           </div>

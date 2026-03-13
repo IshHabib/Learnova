@@ -4,25 +4,48 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Brain, Lock, Mail, ChevronRight } from "lucide-react"
+import { signInWithEmailAndPassword } from "firebase/auth"
+import { auth, db } from "@/lib/firebase"
+import { doc, getDoc } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [role, setRole] = useState("student")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const router = useRouter()
+  const { toast } = useToast()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulation: redirect based on role
-    setTimeout(() => {
-      router.push(`/dashboard/${role}`)
-    }, 1000)
+    
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid))
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        router.push(`/dashboard/${userData.role}`)
+      } else {
+        router.push(`/dashboard/student`)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -34,7 +57,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Welcome back</CardTitle>
           <CardDescription>Enter your credentials to access Learnova</CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>
           <Tabs defaultValue="student" onValueChange={setRole} className="w-full mb-6">
             <TabsList className="grid w-full grid-cols-2">
@@ -47,7 +70,15 @@ export default function LoginPage() {
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="email" placeholder="m@example.com" className="pl-10" required />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="m@example.com" 
+                  className="pl-10" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -59,7 +90,14 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" className="pl-10" required />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  className="pl-10" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <Button type="submit" className="w-full h-11" disabled={isLoading}>

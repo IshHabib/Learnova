@@ -1,6 +1,6 @@
-
 "use client"
 
+import { useEffect, useState } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,8 +8,40 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { BookOpen, Video, Brain, PlayCircle, FileText, ArrowRight, TrendingUp } from "lucide-react"
+import { onAuthStateChanged } from "firebase/auth"
+import { doc, onSnapshot } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 
 export default function StudentDashboard() {
+  const [stats, setStats] = useState({
+    averageGrade: 0,
+    classesAttended: 0,
+    quizzesCompleted: 0,
+    newMessages: 0
+  })
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
+          if (doc.exists()) {
+            const data = doc.data()
+            if (data.stats) {
+              setStats({
+                averageGrade: data.stats.averageGrade || 0,
+                classesAttended: data.stats.classesAttended || 0,
+                quizzesCompleted: data.stats.quizzesCompleted || 0,
+                newMessages: data.stats.newMessages || 0
+              })
+            }
+          }
+        })
+        return () => unsubscribeDoc()
+      }
+    })
+    return () => unsubscribeAuth()
+  }, [])
+
   return (
     <SidebarProvider>
       <AppSidebar role="student" />
@@ -34,8 +66,8 @@ export default function StudentDashboard() {
                 <TrendingUp className="h-4 w-4 opacity-70" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">88.5%</div>
-                <p className="text-xs opacity-70">+2.5% from last month</p>
+                <div className="text-2xl font-bold">{stats.averageGrade}%</div>
+                <p className="text-xs opacity-70">Updated in real-time</p>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-none">
@@ -44,7 +76,7 @@ export default function StudentDashboard() {
                 <BookOpen className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">42</div>
+                <div className="text-2xl font-bold">{stats.classesAttended}</div>
                 <p className="text-xs text-muted-foreground">This semester</p>
               </CardContent>
             </Card>
@@ -54,8 +86,8 @@ export default function StudentDashboard() {
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">12/15</div>
-                <Progress value={80} className="mt-2" />
+                <div className="text-2xl font-bold">{stats.quizzesCompleted}</div>
+                <Progress value={(stats.quizzesCompleted / 15) * 100} className="mt-2" />
               </CardContent>
             </Card>
             <Card className="shadow-sm border-none">
@@ -64,8 +96,8 @@ export default function StudentDashboard() {
                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3 New</div>
-                <p className="text-xs text-muted-foreground">From Professor Smith</p>
+                <div className="text-2xl font-bold">{stats.newMessages} New</div>
+                <p className="text-xs text-muted-foreground">Check your inbox</p>
               </CardContent>
             </Card>
           </div>

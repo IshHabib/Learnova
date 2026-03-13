@@ -12,7 +12,12 @@ import {
   Users,
   Settings,
   GraduationCap,
+  LogOut,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { onAuthStateChanged, signOut } from "firebase/auth"
+import { doc, onSnapshot } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 
 import { NavMain } from "@/components/dashboard/nav-main"
 import {
@@ -28,6 +33,36 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function AppSidebar({ role = "student", ...props }: React.ComponentProps<typeof Sidebar> & { role?: "student" | "teacher" }) {
+  const [userName, setUserName] = React.useState("User")
+  const [userRole, setUserRole] = React.useState(role)
+  const router = useRouter()
+
+  React.useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserName(user.displayName || "User")
+        
+        // Listen to Firestore for updates to role or name
+        const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
+          if (doc.exists()) {
+            const data = doc.data()
+            setUserName(data.displayName || user.displayName || "User")
+            setUserRole(data.role || role)
+          }
+        })
+        return () => unsubscribeDoc()
+      } else {
+        router.push("/login")
+      }
+    })
+    return () => unsubscribeAuth()
+  }, [role, router])
+
+  const handleSignOut = async () => {
+    await signOut(auth)
+    router.push("/login")
+  }
+
   const studentNav = [
     { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard },
     { title: "Classrooms", url: "/dashboard/student/classes", icon: GraduationCap },
@@ -49,7 +84,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
     { title: "Messages", url: "/dashboard/teacher/messages", icon: MessageSquare },
   ]
 
-  const currentNav = role === "teacher" ? teacherNav : studentNav
+  const currentNav = userRole === "teacher" ? teacherNav : studentNav
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -69,21 +104,21 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={currentNav} label={role === "teacher" ? "Teacher Portal" : "Student Portal"} />
+        <NavMain items={currentNav} label={userRole === "teacher" ? "Teacher Portal" : "Student Portal"} />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg">
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src="https://picsum.photos/seed/user1/32/32" alt="User" />
-                <AvatarFallback className="rounded-lg">LN</AvatarFallback>
+                <AvatarImage src={`https://picsum.photos/seed/${userName}/32/32`} alt={userName} />
+                <AvatarFallback className="rounded-lg">{userName.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Alex Johnson</span>
-                <span className="truncate text-xs">{role === "teacher" ? "Professor" : "Student"}</span>
+                <span className="truncate font-semibold">{userName}</span>
+                <span className="truncate text-xs">{userRole === "teacher" ? "Professor" : "Student"}</span>
               </div>
-              <Settings className="ml-auto size-4" />
+              <LogOut className="ml-auto size-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={handleSignOut} />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

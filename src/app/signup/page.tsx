@@ -4,25 +4,68 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Brain, Lock, Mail, User, ChevronRight } from "lucide-react"
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
+import { auth, db } from "@/lib/firebase"
+import { doc, setDoc } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [role, setRole] = useState("student")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
   const router = useRouter()
+  const { toast } = useToast()
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulation: redirect based on role
-    setTimeout(() => {
+    
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+      
+      await updateProfile(user, { displayName: fullName })
+      
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email,
+        displayName: fullName,
+        role: role,
+        createdAt: new Date().toISOString(),
+        stats: role === "student" ? {
+          averageGrade: 0,
+          classesAttended: 0,
+          quizzesCompleted: 0
+        } : {
+          totalStudents: 0,
+          avgClassScore: 0,
+          pendingTasks: 0
+        }
+      })
+      
+      toast({
+        title: "Account created",
+        description: `Welcome to Learnova, ${fullName}!`,
+      })
+      
       router.push(`/dashboard/${role}`)
-    }, 1000)
+    } catch (error: any) {
+      toast({
+        title: "Signup Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -47,21 +90,43 @@ export default function SignupPage() {
               <Label htmlFor="full-name">Full Name</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="full-name" placeholder="John Doe" className="pl-10" required />
+                <Input 
+                  id="full-name" 
+                  placeholder="John Doe" 
+                  className="pl-10" 
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="m@example.com" className="pl-10" required />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="m@example.com" 
+                  className="pl-10" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" className="pl-10" required />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  className="pl-10" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <Button type="submit" className="w-full h-11" disabled={isLoading}>
