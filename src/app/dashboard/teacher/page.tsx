@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react"
@@ -28,13 +27,15 @@ export default function TeacherDashboard() {
     if (!db || !user?.uid) return null
     return query(collection(db, "classes"), where("teacherId", "==", user.uid))
   }, [db, user?.uid])
-  const { data: teacherClasses, isLoading: classesLoading } = useCollection(classesQuery)
+  const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
   // 3. Fetch All Quiz Attempts for this Teacher's classes
-  // Note: This uses a collectionGroup query as supported by security rules and backend.json denormalization
   const teacherAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    return query(collectionGroup(db, "quizAttempts"), where("teacherId", "==", user.uid))
+    return query(
+      collectionGroup(db, "quizAttempts"), 
+      where("teacherId", "==", user.uid)
+    )
   }, [db, user?.uid])
   const { data: teacherAttempts, isLoading: attemptsLoading } = useCollection(teacherAttemptsQuery)
 
@@ -51,8 +52,8 @@ export default function TeacherDashboard() {
     return {
       totalStudents,
       avgClassScore: avgScore,
-      activeLectures: 0, // Placeholder until live session logic is implemented
-      pendingTasks: attempts.length // For MVP, attempts to review
+      activeLectures: 0, 
+      pendingTasks: attempts.length 
     }
   }, [teacherClasses, teacherAttempts])
 
@@ -173,7 +174,7 @@ export default function TeacherDashboard() {
                 </div>
               ) : (
                 teacherClasses?.map((session, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-white shadow-sm border hover:border-primary/30 transition-colors group cursor-pointer" onClick={() => window.location.href = `/dashboard/teacher/classes/${session.id}`}>
+                  <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-white shadow-sm border hover:border-primary/30 transition-colors group cursor-pointer" onClick={() => window.location.href = `/dashboard/teacher/classes`}>
                     <div className="flex items-center gap-6">
                       <span className="text-sm font-bold text-primary w-20">{session.subject}</span>
                       <div>

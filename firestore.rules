@@ -14,82 +14,79 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    // User profiles
+    // User profiles - allow read for all signed-in users so they can see names
     match /users/{userId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isOwner(userId);
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
     }
 
-    // Quiz attempts (supports collectionGroup)
+    // Quiz attempts - Specific path for students
+    match /users/{userId}/quizAttempts/{attemptId} {
+      allow read: if isOwner(userId) || (isSignedIn() && resource.data.teacherId == request.auth.uid);
+      allow create: if isOwner(userId);
+    }
+
+    // Quiz attempts - Collection Group rule for teachers to see all attempts
     match /{path=**}/quizAttempts/{attemptId} {
-      allow read: if isSignedIn() && (
+      allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid || 
         resource.data.teacherId == request.auth.uid
       );
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
     }
 
     // Classes
     match /classes/{classId} {
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow create: if isSignedIn(); 
       allow update: if isSignedIn() && (
         resource.data.teacherId == request.auth.uid || 
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds']))
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds'])
       );
       allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
     }
 
-    // Notes (supports collectionGroup)
-    match /{path=**}/notes/{noteId} {
-      allow read: if isSignedIn() && (
-        resource.data.classTeacherId == request.auth.uid || 
-        request.auth.uid in resource.data.classStudentIds
+    // Notes
+    match /classes/{classId}/notes/{noteId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
-      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
     }
 
-    // Videos (supports collectionGroup)
-    match /{path=**}/videos/{videoId} {
-      allow read: if isSignedIn() && (
-        resource.data.classTeacherId == request.auth.uid || 
-        request.auth.uid in resource.data.classStudentIds
+    // Videos
+    match /classes/{classId}/videos/{videoId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
-      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
     }
 
-    // Quizzes (supports collectionGroup)
-    match /{path=**}/quizzes/{quizId} {
-      allow read: if isSignedIn() && (
-        resource.data.classTeacherId == request.auth.uid || 
-        request.auth.uid in resource.data.classStudentIds
+    // Quizzes
+    match /classes/{classId}/quizzes/{quizId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
-      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
     }
 
-    // Study Groups (supports collectionGroup)
-    match /{path=**}/studyGroups/{groupId} {
-      allow read: if isSignedIn() && (
-        resource.data.classTeacherId == request.auth.uid || 
-        request.auth.uid in resource.data.studentIds
+    // Study Groups
+    match /classes/{classId}/studyGroups/{groupId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
-      allow create: if isSignedIn() && request.resource.data.classTeacherId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
     }
 
     // Chat Sessions
     match /chatSessions/{sessionId} {
       allow get, list: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
-      allow create: if isSignedIn() && (request.auth.uid in request.resource.data.participantIds);
+      allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
     }
 
-    // Messages (supports collectionGroup)
-    match /{path=**}/messages/{messageId} {
-      allow read: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
+    // Messages
+    match /chatSessions/{sessionId}/messages/{messageId} {
+      allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/chatSessions/$(sessionId)).data.participantIds);
       allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
     }
   }

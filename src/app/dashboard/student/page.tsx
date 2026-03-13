@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react"
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { BookOpen, Video, Brain, PlayCircle, FileText, ArrowRight, TrendingUp } from "lucide-react"
+import { BookOpen, Brain, FileText, ArrowRight, TrendingUp } from "lucide-react"
 import { doc, collection, query, where, orderBy } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
@@ -39,6 +38,7 @@ export default function StudentDashboard() {
     if (!db || !user?.uid) return null
     return query(
       collection(db, "users", user.uid, "quizAttempts"),
+      where("studentId", "==", user.uid), // Required by security rules filter-matching
       orderBy("submissionDate", "asc")
     )
   }, [db, user?.uid])
@@ -57,7 +57,7 @@ export default function StudentDashboard() {
       averageGrade: avgGrade,
       classesAttended: classes.length,
       quizzesCompleted: attempts.length,
-      newMessages: 0 // Messages logic would follow similar pattern with chatSessions
+      newMessages: 0 
     }
   }, [quizAttempts, userClasses])
 
@@ -185,7 +185,7 @@ export default function StudentDashboard() {
                 </div>
               ) : (
                 userClasses?.map((item, i) => (
-                  <Card key={i} className="shadow-sm border-none overflow-hidden group">
+                  <Card key={i} className="shadow-sm border-none overflow-hidden group cursor-pointer" onClick={() => window.location.href = `/dashboard/student/classes`}>
                     <div className="h-32 bg-primary/5 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                       <FileText className="h-10 w-10 text-primary opacity-50" />
                     </div>

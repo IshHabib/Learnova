@@ -1,4 +1,3 @@
-
 "use client"
 
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -14,11 +13,13 @@ export default function StudentNotesPage() {
   const { user } = useUser()
   const db = useFirestore()
 
-  // Fetch all notes for classes where the student is a member
-  // Note: Backend schema specifies classStudentIds array in Note document
+  // Fetch all notes where student is in the classStudentIds list
   const notesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    return query(collectionGroup(db, "notes"), where("classStudentIds", "array-contains", user.uid))
+    return query(
+      collectionGroup(db, "notes"), 
+      where("classStudentIds", "array-contains", user.uid)
+    )
   }, [db, user?.uid])
 
   const { data: notes, isLoading } = useCollection(notesQuery)
@@ -41,16 +42,16 @@ export default function StudentNotesPage() {
           </div>
 
           {isLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
             </div>
           ) : !notes || notes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed rounded-2xl bg-muted/5">
               <div className="h-16 w-16 bg-muted/20 rounded-full flex items-center justify-center mb-4">
                 <FileText className="h-8 w-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold">No materials found</h3>
-              <p className="text-sm text-muted-foreground">Your instructors haven't uploaded any study materials for your classes yet.</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">Your instructors haven't uploaded any study materials for your classes yet.</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -72,7 +73,7 @@ export default function StudentNotesPage() {
                     <CardDescription className="text-[10px]">Updated recently</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button variant="outline" size="sm" className="w-full h-8 text-xs">
+                    <Button variant="outline" size="sm" className="w-full h-8 text-xs" onClick={() => window.open(note.contentUrl)}>
                       <Download className="mr-2 h-3 w-3" />
                       View Material
                     </Button>
