@@ -17,7 +17,7 @@ import {
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import { doc, onSnapshot } from "firebase/firestore"
-import { auth, db } from "@/lib/firebase"
+import { useAuth, useFirestore } from "@/firebase"
 
 import { NavMain } from "@/components/dashboard/nav-main"
 import {
@@ -36,6 +36,8 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
   const [userName, setUserName] = React.useState("User")
   const [userRole, setUserRole] = React.useState(role)
   const router = useRouter()
+  const auth = useAuth()
+  const db = useFirestore()
 
   React.useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -56,7 +58,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
       }
     })
     return () => unsubscribeAuth()
-  }, [role, router])
+  }, [auth, db, role, router])
 
   const handleSignOut = async () => {
     await signOut(auth)
@@ -96,8 +98,8 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
                 <Brain className="size-5" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Learnova</span>
-                <span className="truncate text-xs">Adaptive Intelligence</span>
+                <span className="truncate font-semibold text-foreground">Learnova</span>
+                <span className="truncate text-xs text-muted-foreground">Adaptive Intelligence</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -115,8 +117,8 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
                 <AvatarFallback className="rounded-lg">{userName.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{userName}</span>
-                <span className="truncate text-xs">{userRole === "teacher" ? "Professor" : "Student"}</span>
+                <span className="truncate font-semibold text-foreground">{userName}</span>
+                <span className="truncate text-xs text-muted-foreground">{userRole === "teacher" ? "Professor" : "Student"}</span>
               </div>
               <LogOut className="ml-auto size-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={handleSignOut} />
             </SidebarMenuButton>

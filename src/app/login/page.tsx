@@ -6,8 +6,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Brain, Lock, Mail, ChevronRight } from "lucide-react"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth, db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
+import { useAuth, useFirestore } from "@/firebase"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,14 +23,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+  
+  const auth = useAuth()
+  const db = useFirestore()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     
     try {
-      if (!auth) throw new Error("Firebase Auth not initialized")
-      
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid))
       

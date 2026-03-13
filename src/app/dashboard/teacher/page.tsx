@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,39 +9,26 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle } from "lucide-react"
-import { onAuthStateChanged } from "firebase/auth"
-import { doc, onSnapshot } from "firebase/firestore"
-import { auth, db } from "@/lib/firebase"
+import { doc } from "firebase/firestore"
+import { useAuth, useFirestore, useUser, useDoc } from "@/firebase"
 
 export default function TeacherDashboard() {
-  const [stats, setStats] = useState({
+  const { user } = useUser()
+  const db = useFirestore()
+
+  const userDocRef = useMemo(() => {
+    if (!db || !user?.uid) return null
+    return doc(db, "users", user.uid)
+  }, [db, user?.uid])
+
+  const { data: userData, loading } = useDoc(userDocRef)
+
+  const stats = userData?.stats || {
     totalStudents: 0,
     avgClassScore: 0,
     activeLectures: 0,
     pendingTasks: 0
-  })
-
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
-          if (doc.exists()) {
-            const data = doc.data()
-            if (data.stats) {
-              setStats({
-                totalStudents: data.stats.totalStudents || 0,
-                avgClassScore: data.stats.avgClassScore || 0,
-                activeLectures: data.stats.activeLectures || 0,
-                pendingTasks: data.stats.pendingTasks || 0
-              })
-            }
-          }
-        })
-        return () => unsubscribeDoc()
-      }
-    })
-    return () => unsubscribeAuth()
-  }, [])
+  }
 
   return (
     <SidebarProvider>
@@ -49,7 +37,7 @@ export default function TeacherDashboard() {
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white/50 backdrop-blur">
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center justify-between">
-            <h1 className="text-lg font-semibold font-headline">Teacher Workspace</h1>
+            <h1 className="text-lg font-semibold font-headline text-foreground">Teacher Workspace</h1>
             <div className="flex items-center gap-2">
               <Button size="sm">
                 <Plus className="mr-2 h-4 w-4" />
@@ -66,7 +54,7 @@ export default function TeacherDashboard() {
                 <Users className="h-4 w-4 opacity-70" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalStudents}</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.totalStudents}</div>
                 <p className="text-xs opacity-70">Across your classes</p>
               </CardContent>
             </Card>
@@ -76,7 +64,7 @@ export default function TeacherDashboard() {
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.avgClassScore}%</div>
+                <div className="text-2xl font-bold">{loading ? "..." : `${stats.avgClassScore}%`}</div>
                 <Progress value={stats.avgClassScore} className="mt-2" />
               </CardContent>
             </Card>
@@ -86,7 +74,7 @@ export default function TeacherDashboard() {
                 <Video className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.activeLectures} Live</div>
+                <div className="text-2xl font-bold">{loading ? "..." : `${stats.activeLectures} Live`}</div>
                 <p className="text-xs text-muted-foreground">Happening now</p>
               </CardContent>
             </Card>
@@ -96,7 +84,7 @@ export default function TeacherDashboard() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.pendingTasks}</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.pendingTasks}</div>
                 <p className="text-xs text-muted-foreground">Items to grade</p>
               </CardContent>
             </Card>
@@ -106,7 +94,7 @@ export default function TeacherDashboard() {
             <Card className="md:col-span-4 shadow-sm border-none">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="font-headline">Class Performance Insights</CardTitle>
+                  <CardTitle className="font-headline text-foreground">Class Performance Insights</CardTitle>
                   <CardDescription>Aggregate improvement across your student roster</CardDescription>
                 </div>
                 <Button variant="outline" size="sm">Details</Button>
@@ -117,7 +105,7 @@ export default function TeacherDashboard() {
             </Card>
             <Card className="md:col-span-3 shadow-sm border-none bg-primary/5">
               <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
+                <CardTitle className="font-headline flex items-center gap-2 text-foreground">
                   <Brain className="h-5 w-5 text-primary" />
                   AI Strategy Engine
                 </CardTitle>
@@ -134,7 +122,7 @@ export default function TeacherDashboard() {
                   </p>
                   <div className="pt-2">
                     <h5 className="text-xs font-bold uppercase text-muted-foreground mb-2">Suggested Strategy:</h5>
-                    <ul className="text-sm space-y-1">
+                    <ul className="text-sm space-y-1 text-foreground">
                       <li className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                         Host a focused Q&A session
@@ -149,7 +137,7 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="p-4 rounded-xl bg-white shadow-sm border">
-                  <h4 className="text-sm font-semibold mb-2">Auto Study Grouping</h4>
+                  <h4 className="text-sm font-semibold mb-2 text-foreground">Auto Study Grouping</h4>
                   <p className="text-xs text-muted-foreground mb-4">
                     AI has identified 4 optimal peer groups based on complementary strengths.
                   </p>
@@ -160,7 +148,7 @@ export default function TeacherDashboard() {
           </div>
 
           <div>
-            <h2 className="text-xl font-bold font-headline mb-4">Upcoming Schedule</h2>
+            <h2 className="text-xl font-bold font-headline mb-4 text-foreground">Upcoming Schedule</h2>
             <div className="space-y-3">
               {[
                 { time: "09:00 AM", subject: "Organic Chemistry", type: "Live Session", students: 45 },
@@ -171,7 +159,7 @@ export default function TeacherDashboard() {
                   <div className="flex items-center gap-6">
                     <span className="text-sm font-bold text-primary w-20">{session.time}</span>
                     <div>
-                      <h4 className="font-semibold text-sm group-hover:text-primary transition-colors">{session.subject}</h4>
+                      <h4 className="font-semibold text-sm group-hover:text-primary transition-colors text-foreground">{session.subject}</h4>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{session.type}</span>
                         <span>•</span>

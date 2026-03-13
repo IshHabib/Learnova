@@ -6,8 +6,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Brain, Lock, Mail, User, ChevronRight } from "lucide-react"
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { auth, db } from "@/lib/firebase"
 import { doc, setDoc } from "firebase/firestore"
+import { useAuth, useFirestore } from "@/firebase"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,14 +24,15 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+  
+  const auth = useAuth()
+  const db = useFirestore()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     
     try {
-      if (!auth) throw new Error("Firebase Auth not initialized")
-      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       

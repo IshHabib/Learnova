@@ -1,0 +1,40 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a registered user, including their role and performance stats.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "teacher"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "averageGrade": { "type": "number" },
+            "classesAttended": { "type": "number" },
+            "quizzesCompleted": { "type": "number" },
+            "newMessages": { "type": "number" },
+            "totalStudents": { "type": "number" },
+            "avgClassScore": { "type": "number" },
+            "activeLectures": { "type": "number" },
+            "pendingTasks": { "type": "number" }
+          }
+        }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profile and dashboard statistics."
+    }
+  }
+}
