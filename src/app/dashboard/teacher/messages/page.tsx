@@ -1,11 +1,10 @@
 "use client"
 
+import { useMemo } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { MessageSquare, Send, Search } from "lucide-react"
-import { collection, query, where, orderBy } from "firebase/firestore"
+import { MessageSquare, Search } from "lucide-react"
+import { collection, query, where } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -16,14 +15,24 @@ export default function TeacherMessagesPage() {
 
   const chatsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
+    // Removed orderBy to avoid requiring a composite index during prototyping
     return query(
       collection(db, "chatSessions"),
-      where("participantIds", "array-contains", user.uid),
-      orderBy("lastMessageTimestamp", "desc")
+      where("participantIds", "array-contains", user.uid)
     )
   }, [db, user?.uid])
 
-  const { data: chats, isLoading } = useCollection(chatsQuery)
+  const { data: unsortedChats, isLoading } = useCollection(chatsQuery)
+
+  // Sort in memory to avoid Firestore index requirement
+  const chats = useMemo(() => {
+    if (!unsortedChats) return []
+    return [...unsortedChats].sort((a, b) => {
+      const dateA = a.lastMessageTimestamp ? new Date(a.lastMessageTimestamp).getTime() : 0
+      const dateB = b.lastMessageTimestamp ? new Date(b.lastMessageTimestamp).getTime() : 0
+      return dateB - dateA // Newest first
+    })
+  }, [unsortedChats])
 
   return (
     <SidebarProvider>
