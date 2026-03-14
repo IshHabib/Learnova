@@ -21,7 +21,11 @@ service cloud.firestore {
       
       // Student's own quiz attempts
       match /quizAttempts/{attemptId} {
-        allow read, write: if isOwner(userId);
+        // A student can read/write their own attempts.
+        // A teacher can read attempts where they are the assigned teacher.
+        allow read: if isSignedIn() && (isOwner(userId) || resource.data.teacherId == request.auth.uid);
+        allow create: if isOwner(userId);
+        allow update, delete: if isOwner(userId);
       }
     }
 
@@ -35,7 +39,7 @@ service cloud.firestore {
       );
       allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
 
-      // Sub-collections - direct access
+      // Sub-collections - direct access for members/teachers
       match /notes/{id} { allow read, write: if isSignedIn(); }
       match /videos/{id} { allow read, write: if isSignedIn(); }
       match /quizzes/{id} { allow read, write: if isSignedIn(); }

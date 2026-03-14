@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
@@ -31,13 +30,20 @@ export default function TeacherDashboard() {
   }, [db, user?.uid])
   const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
-  // Fetch attempts by iterating through students in teacher's classes to avoid collectionGroup index
   useEffect(() => {
-    if (!db || !user?.uid || classesLoading || !teacherClasses) return
+    if (!db || !user?.uid || classesLoading || !teacherClasses) {
+      if (!classesLoading && teacherClasses?.length === 0) {
+        setTeacherAttempts([])
+        setAttemptsLoading(false)
+      }
+      return
+    }
 
     const studentIds = new Set<string>()
     teacherClasses.forEach(cls => {
-      cls.studentIds?.forEach((id: string) => studentIds.add(id))
+      if (cls.studentIds && Array.isArray(cls.studentIds)) {
+        cls.studentIds.forEach((id: string) => studentIds.add(id))
+      }
     })
 
     if (studentIds.size === 0) {
@@ -47,17 +53,22 @@ export default function TeacherDashboard() {
     }
 
     const fetchAttempts = async () => {
-      const allAttempts: any[] = []
-      for (const studentId of Array.from(studentIds)) {
-        const attemptsSnap = await getDocs(
-          query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
-        )
-        attemptsSnap.forEach(doc => {
-          allAttempts.push({ id: doc.id, ...doc.data() })
-        })
+      try {
+        const allAttempts: any[] = []
+        for (const studentId of Array.from(studentIds)) {
+          const attemptsSnap = await getDocs(
+            query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
+          )
+          attemptsSnap.forEach(doc => {
+            allAttempts.push({ id: doc.id, ...doc.data() })
+          })
+        }
+        setTeacherAttempts(allAttempts)
+      } catch (error) {
+        console.error("Error fetching teacher attempts:", error)
+      } finally {
+        setAttemptsLoading(false)
       }
-      setTeacherAttempts(allAttempts)
-      setAttemptsLoading(false)
     }
 
     fetchAttempts()
@@ -67,9 +78,12 @@ export default function TeacherDashboard() {
     const classes = teacherClasses || []
     const attempts = teacherAttempts || []
     
-    // Calculate UNIQUE students across all classes
     const studentSet = new Set<string>()
-    classes.forEach(c => c.studentIds?.forEach((id: string) => studentSet.add(id)))
+    classes.forEach(c => {
+      if (c.studentIds && Array.isArray(c.studentIds)) {
+        c.studentIds.forEach((id: string) => studentSet.add(id))
+      }
+    })
     
     const avgScore = attempts.length > 0
       ? Math.round(attempts.reduce((acc, curr) => acc + (curr.score || 0), 0) / attempts.length)
