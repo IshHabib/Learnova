@@ -26,7 +26,6 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
         
         // Teachers can read attempts for their own assigned quizzes/classes
-        // We check both the teacherId (direct) and classTeacherId (denormalized)
         allow read: if isSignedIn() && (
           resource.data.teacherId == request.auth.uid || 
           resource.data.classTeacherId == request.auth.uid
@@ -39,32 +38,30 @@ service cloud.firestore {
       // Broad read for all signed in users
       allow read: if isSignedIn();
       
-      // Allow any signed in user to create or update a class (required for enrollment)
+      // Allow any signed in user to create a class (required for teachers)
       allow create: if isSignedIn();
+      
+      // Allow any signed in user to update a class 
+      // This is CRITICAL for enrollment (students updating studentIds array)
       allow update: if isSignedIn();
       
-      // Only the teacher can delete the class
+      // Only the teacher who created the class can delete it
       allow delete: if isSignedIn() && (
         resource.data.teacherId == request.auth.uid
       );
 
-      // Sub-collections
-      // Permissions are kept broad for prototype functionality
+      // Sub-collections: broad permissions for prototype functionality
       match /notes/{id} { 
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
       match /videos/{id} { 
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
       match /quizzes/{id} { 
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
       match /studyGroups/{id} { 
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 

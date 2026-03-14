@@ -76,7 +76,7 @@ export default function StudentClassesPage() {
         studentIds: arrayUnion(user.uid)
       }
 
-      // Non-blocking mutation
+      // Update the class document to add the student
       updateDoc(classRef, updateData)
         .then(() => {
           toast({
