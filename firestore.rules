@@ -35,9 +35,10 @@ service cloud.firestore {
 
     // Classes and their content
     // Broad permissions for prototype phase to allow self-enrollment and management
+    // Deployment trigger comment: Refined for explicit update permission
     match /classes/{classId} {
       // Explicitly permitting all CRUD operations for signed-in users
-      // This ensures that students can 'update' the studentIds array
+      // This ensures that students can 'update' the studentIds array for enrollment
       allow read, create, update, delete: if isSignedIn();
 
       // Broad permissions for sub-collections (notes, videos, quizzes, etc.)

@@ -31,8 +31,11 @@ export default function StudentClassesPage() {
   const { user } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
+  
+  // State for form and modal management
   const [isJoining, setIsJoining] = useState(false)
   const [classCode, setClassCode] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -41,15 +44,17 @@ export default function StudentClassesPage() {
 
   const { data: joinedClasses, isLoading } = useCollection(classesQuery)
 
-  const handleJoinClass = () => {
-    if (!user || !classCode.trim()) return
+  const handleJoinClass = async () => {
+    if (!user || !classCode.trim() || !db) return
     setIsJoining(true)
     
     const classId = classCode.trim()
     const classRef = doc(db, "classes", classId)
     
-    // First read to verify existence
-    getDoc(classRef).then((classSnap) => {
+    try {
+      // First read to verify existence - reads remain awaited for validation
+      const classSnap = await getDoc(classRef)
+      
       if (!classSnap.exists()) {
         toast({
           title: "Class not found",
@@ -69,6 +74,7 @@ export default function StudentClassesPage() {
         })
         setClassCode("")
         setIsJoining(false)
+        setIsDialogOpen(false)
         return
       }
 
@@ -76,7 +82,7 @@ export default function StudentClassesPage() {
         studentIds: arrayUnion(user.uid)
       }
 
-      // Update the class document to add the student
+      // CRITICAL: Non-blocking mutation pattern
       updateDoc(classRef, updateData)
         .then(() => {
           toast({
@@ -84,6 +90,7 @@ export default function StudentClassesPage() {
             description: `You have joined ${classSnap.data()?.name || "the classroom"}.`,
           })
           setClassCode("")
+          setIsDialogOpen(false)
           setIsJoining(false)
         })
         .catch(async (serverError) => {
@@ -94,15 +101,16 @@ export default function StudentClassesPage() {
           });
           errorEmitter.emit('permission-error', permissionError);
           setIsJoining(false)
-        });
-    }).catch(async (serverError) => {
-      const permissionError = new FirestorePermissionError({
-        path: classRef.path,
-        operation: 'get',
-      });
-      errorEmitter.emit('permission-error', permissionError);
+        })
+
+    } catch (error: any) {
+      toast({
+        title: "Error fetching class",
+        description: "An unexpected error occurred while looking up the class.",
+        variant: "destructive"
+      })
       setIsJoining(false)
-    });
+    }
   }
 
   return (
@@ -113,7 +121,8 @@ export default function StudentClassesPage() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold font-headline">My Classrooms</h1>
-            <Dialog>
+            
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="mr-2 h-4 w-4" />
@@ -135,6 +144,9 @@ export default function StudentClassesPage() {
                       placeholder="Paste class ID here..." 
                       value={classCode}
                       onChange={(e) => setClassCode(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleJoinClass()
+                      }}
                     />
                   </div>
                 </div>
@@ -146,6 +158,7 @@ export default function StudentClassesPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            
           </div>
         </header>
         <main className="p-4 md:p-6 lg:p-8">
