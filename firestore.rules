@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,10 +22,8 @@ service cloud.firestore {
       
       // Student's quiz attempts
       match /quizAttempts/{attemptId} {
-        // Owner has full access
         allow read, write: if isOwner(userId);
-        // Teacher has read access if they are assigned to the attempt
-        allow read: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+        allow read: if isSignedIn() && (resource.data.teacherId == request.auth.uid || resource.data.studentId == request.auth.uid);
       }
     }
 
@@ -33,15 +32,26 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
-        resource.data.teacherId == request.auth.uid || 
-        isOwner(resource.data.teacherId)
+        resource.data.teacherId == request.auth.uid
       );
 
-      // Simple sub-collection access
-      match /notes/{id} { allow read, write: if isSignedIn(); }
-      match /videos/{id} { allow read, write: if isSignedIn(); }
-      match /quizzes/{id} { allow read, write: if isSignedIn(); }
-      match /studyGroups/{id} { allow read, write: if isSignedIn(); }
+      // Sub-collections
+      match /notes/{id} { 
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+      }
+      match /videos/{id} { 
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+      }
+      match /quizzes/{id} { 
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+      }
+      match /studyGroups/{id} { 
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
+      }
     }
 
     // Chat Sessions
@@ -53,7 +63,7 @@ service cloud.firestore {
       }
     }
 
-    // --- Global Collection Group Rules (Provably Safe for Queries) ---
+    // --- Global Collection Group Rules ---
     
     match /{path=**}/notes/{noteId} {
       allow read: if isSignedIn();

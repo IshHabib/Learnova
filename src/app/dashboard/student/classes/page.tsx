@@ -2,12 +2,13 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { GraduationCap, Plus, Loader2, Search } from "lucide-react"
+import { GraduationCap, Plus, Loader2 } from "lucide-react"
 import { collection, query, where, doc, updateDoc, arrayUnion, getDoc } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -148,7 +149,9 @@ export default function StudentClassesPage() {
                       </div>
                       <Progress value={100} className="h-1" />
                     </div>
-                    <Button variant="secondary" className="w-full" size="sm">Enter Classroom</Button>
+                    <Button asChild variant="secondary" className="w-full" size="sm">
+                      <Link href={`/dashboard/student/classes/${cls.id}`}>Enter Classroom</Link>
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
