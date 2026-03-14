@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { Brain, TrendingUp, Users, Target, AlertCircle, Sparkles, Loader2 } from "lucide-react"
+import { Brain, TrendingUp, Target, Loader2, Sparkles } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { suggestTeachingStrategies } from "@/ai/flows/suggest-teaching-strategies"
 import {
@@ -19,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 
 export default function TeacherAnalyticsPage() {
@@ -233,14 +232,14 @@ export default function TeacherAnalyticsPage() {
 
         <Dialog open={showAiModal} onOpenChange={setShowAiModal}>
           <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
-            <DialogHeader className="p-6 border-b bg-white">
+            <DialogHeader className="p-6 border-b bg-white shrink-0">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <Brain className="h-6 w-6" />
                 <DialogTitle className="text-xl font-headline">AI Instructional Strategy Report</DialogTitle>
               </div>
               <DialogDescription>Data-driven insights for improved learning outcomes</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 p-8 bg-slate-50/50">
+            <div className="flex-1 min-h-0 overflow-y-auto p-8 bg-slate-50/50">
               <div className="max-w-2xl mx-auto">
                 {isGeneratingStrategies ? (
                   <div className="flex flex-col items-center justify-center py-24 space-y-4">
@@ -255,8 +254,8 @@ export default function TeacherAnalyticsPage() {
                   </div>
                 )}
               </div>
-            </ScrollArea>
-            <DialogFooter className="p-4 border-t bg-white">
+            </div>
+            <DialogFooter className="p-4 border-t bg-white shrink-0">
               <Button onClick={() => setShowAiModal(false)}>Dismiss</Button>
             </DialogFooter>
           </DialogContent>

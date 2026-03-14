@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function TeacherDashboard() {
   const { user } = useUser()
@@ -305,14 +304,14 @@ export default function TeacherDashboard() {
 
         <Dialog open={showAiModal} onOpenChange={setShowAiModal}>
           <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
-            <DialogHeader className="p-6 border-b bg-white">
+            <DialogHeader className="p-6 border-b bg-white shrink-0">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <Brain className="h-6 w-6" />
                 <DialogTitle className="text-xl font-headline">AI Instructional Strategy Report</DialogTitle>
               </div>
               <DialogDescription>Performance-based findings and suggested interventions</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 p-8 bg-slate-50/50">
+            <div className="flex-1 min-h-0 overflow-y-auto p-8 bg-slate-50/50">
               <div className="max-w-2xl mx-auto">
                 {isGeneratingStrategies ? (
                   <div className="flex flex-col items-center justify-center py-24 space-y-4">
@@ -333,8 +332,8 @@ export default function TeacherDashboard() {
                   </div>
                 )}
               </div>
-            </ScrollArea>
-            <DialogFooter className="p-4 border-t bg-white">
+            </div>
+            <DialogFooter className="p-4 border-t bg-white shrink-0">
               <Button onClick={() => setShowAiModal(false)}>Close Report</Button>
             </DialogFooter>
           </DialogContent>
