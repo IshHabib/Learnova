@@ -41,7 +41,13 @@ export default function TeacherAnalyticsPage() {
   const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
   useEffect(() => {
-    if (!db || !user?.uid || classesLoading || !teacherClasses) return
+    if (!db || !user?.uid || classesLoading || !teacherClasses) {
+      if (!classesLoading && teacherClasses?.length === 0) {
+        setTeacherAttempts([])
+        setIsLoading(false)
+      }
+      return
+    }
 
     const studentIds = new Set<string>()
     teacherClasses.forEach(cls => {
@@ -57,12 +63,16 @@ export default function TeacherAnalyticsPage() {
     const fetchAttempts = async () => {
       const allAttempts: any[] = []
       for (const studentId of Array.from(studentIds)) {
-        const attemptsSnap = await getDocs(
-          query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
-        )
-        attemptsSnap.forEach(doc => {
-          allAttempts.push({ id: doc.id, ...doc.data() })
-        })
+        try {
+          const attemptsSnap = await getDocs(
+            query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
+          )
+          attemptsSnap.forEach(doc => {
+            allAttempts.push({ id: doc.id, ...doc.data() })
+          })
+        } catch (e) {
+          console.warn(`Could not fetch attempts for student ${studentId}:`, e)
+        }
       }
       setTeacherAttempts(allAttempts)
       setIsLoading(false)
@@ -251,8 +261,7 @@ export default function TeacherAnalyticsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </main>
-    </SidebarInset>
-  </SidebarProvider>
-)
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }

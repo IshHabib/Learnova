@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle, Sparkles, Loader2, X } from "lucide-react"
+import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle, Sparkles, Loader2 } from "lucide-react"
 import { doc, collection, query, where, getDocs } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { suggestTeachingStrategies } from "@/ai/flows/suggest-teaching-strategies"
@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function TeacherDashboard() {
-  const { user } = userUser()
+  const { user } = useUser()
   const db = useFirestore()
   
   const [teacherAttempts, setTeacherAttempts] = useState<any[]>([])
