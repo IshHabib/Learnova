@@ -26,6 +26,8 @@ import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function TeacherClassesPage() {
   const { user } = useUser()
@@ -48,75 +50,100 @@ export default function TeacherClassesPage() {
 
   const { data: myClasses, isLoading } = useCollection(classesQuery)
 
-  const handleCreateClass = async () => {
+  const handleCreateClass = () => {
     if (!user || !newClass.name || !newClass.subject) return
     setIsCreating(true)
-    try {
-      const classRef = doc(collection(db, "classes"))
-      await setDoc(classRef, {
-        id: classRef.id,
-        name: newClass.name,
-        subject: newClass.subject,
-        description: newClass.description,
-        teacherId: user.uid,
-        studentIds: [],
-        creationDate: new Date().toISOString(),
-        createdAt: serverTimestamp()
-      })
-      setNewClass({ name: "", subject: "", description: "" })
-      toast({ title: "Class created successfully!" })
-    } catch (error: any) {
-      toast({ title: "Failed to create class", description: error.message, variant: "destructive" })
-    } finally {
-      setIsCreating(false)
+    
+    const classRef = doc(collection(db, "classes"))
+    const classData = {
+      id: classRef.id,
+      name: newClass.name,
+      subject: newClass.subject,
+      description: newClass.description,
+      teacherId: user.uid,
+      studentIds: [],
+      creationDate: new Date().toISOString(),
+      createdAt: serverTimestamp()
     }
+
+    setDoc(classRef, classData)
+      .then(() => {
+        setNewClass({ name: "", subject: "", description: "" })
+        toast({ title: "Class created successfully!" })
+        setIsCreating(false)
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: classRef.path,
+          operation: 'create',
+          requestResourceData: classData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setIsCreating(false)
+      })
   }
 
-  const handleAddStudent = async () => {
+  const handleAddStudent = () => {
     if (!managingClass || !newStudentId.trim()) return
     setIsAddingStudent(true)
-    try {
-      const studentRef = doc(db, "users", newStudentId.trim())
-      const studentSnap = await getDoc(studentRef)
-
+    
+    const studentId = newStudentId.trim()
+    const studentRef = doc(db, "users", studentId)
+    
+    getDoc(studentRef).then((studentSnap) => {
       if (!studentSnap.exists()) {
         toast({
           title: "User not found",
           description: "Please verify the Student ID and try again.",
           variant: "destructive"
         })
+        setIsAddingStudent(false)
         return
       }
 
       const studentData = studentSnap.data()
-      if (studentData.role !== "student") {
+      // Robust role check (case insensitive)
+      if (studentData.role?.toLowerCase() !== "student") {
         toast({
           title: "Invalid Role",
-          description: "This user is registered as a Teacher and cannot be added as a student.",
+          description: `This user is registered as a ${studentData.role} and cannot be added as a student.`,
           variant: "destructive"
         })
+        setIsAddingStudent(false)
         return
       }
 
       const classRef = doc(db, "classes", managingClass.id)
-      await updateDoc(classRef, {
-        studentIds: arrayUnion(newStudentId.trim())
-      })
+      const updateData = {
+        studentIds: arrayUnion(studentId)
+      }
 
-      toast({
-        title: "Student Added!",
-        description: `${studentData.name || "User"} has been enrolled in ${managingClass.name}.`
-      })
-      setNewStudentId("")
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      })
-    } finally {
+      updateDoc(classRef, updateData)
+        .then(() => {
+          toast({
+            title: "Student Added!",
+            description: `${studentData.name || "User"} has been enrolled in ${managingClass.name}.`
+          })
+          setNewStudentId("")
+          setIsAddingStudent(false)
+        })
+        .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: classRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setIsAddingStudent(false)
+        })
+    }).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: studentRef.path,
+        operation: 'get',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setIsAddingStudent(false)
-    }
+    });
   }
 
   const copyToClipboard = (id: string) => {

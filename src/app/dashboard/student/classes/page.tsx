@@ -24,6 +24,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function StudentClassesPage() {
   const { user } = useUser()
@@ -39,40 +41,56 @@ export default function StudentClassesPage() {
 
   const { data: joinedClasses, isLoading } = useCollection(classesQuery)
 
-  const handleJoinClass = async () => {
+  const handleJoinClass = () => {
     if (!user || !classCode.trim()) return
     setIsJoining(true)
-    try {
-      const classRef = doc(db, "classes", classCode.trim())
-      const classSnap = await getDoc(classRef)
-      
+    
+    const classId = classCode.trim()
+    const classRef = doc(db, "classes", classId)
+    
+    // First read to verify existence
+    getDoc(classRef).then((classSnap) => {
       if (!classSnap.exists()) {
         toast({
           title: "Class not found",
           description: "Please check the class code and try again.",
           variant: "destructive"
         })
+        setIsJoining(false)
         return
       }
 
-      await updateDoc(classRef, {
+      const updateData = {
         studentIds: arrayUnion(user.uid)
-      })
+      }
 
-      toast({
-        title: "Success!",
-        description: `You have joined ${classSnap.data().name}.`,
-      })
-      setClassCode("")
-    } catch (error: any) {
-      toast({
-        title: "Error joining class",
-        description: error.message,
-        variant: "destructive"
-      })
-    } finally {
+      // Non-blocking mutation
+      updateDoc(classRef, updateData)
+        .then(() => {
+          toast({
+            title: "Success!",
+            description: `You have joined ${classSnap.data()?.name || "the classroom"}.`,
+          })
+          setClassCode("")
+          setIsJoining(false)
+        })
+        .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: classRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setIsJoining(false)
+        });
+    }).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: classRef.path,
+        operation: 'get',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setIsJoining(false)
-    }
+    });
   }
 
   return (
