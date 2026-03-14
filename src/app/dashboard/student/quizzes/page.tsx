@@ -338,7 +338,7 @@ export default function StudentQuizzesPage() {
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Quiz History</h2>
             {isLoading ? (
               <div className="space-y-3">
-                {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
+                {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
               </div>
             ) : !attempts || attempts.length === 0 ? (
               <div className="p-12 text-center border rounded-xl bg-card">
