@@ -32,35 +32,43 @@ service cloud.firestore {
     }
 
     // Sub-collections: Notes, Videos, Quizzes, StudyGroups
-    // We use a recursive match for collection group queries
+    // Use separate rules for teacher and student access to aid the query optimizer
     
     match /{path=**}/notes/{noteId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
+      // Split OR for collectionGroup list queries
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
     }
 
     match /{path=**}/videos/{videoId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
     }
 
     match /{path=**}/quizzes/{quizId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
     }
 
     match /{path=**}/studyGroups/{groupId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
     }
 
+    // Quiz Attempts
     match /{path=**}/quizAttempts/{attemptId} {
-      allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
-      allow get: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
+      allow get: if isSignedIn();
+      // Allow students to list their own or teachers to list for their classes
+      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherId == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
     }
 

@@ -5,11 +5,10 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { collectionGroup, query, where, orderBy } from "firebase/firestore"
+import { collection, query, orderBy } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
-import { Skeleton } from "@/components/ui/skeleton"
-import { TrendingUp, Award, Target, Activity } from "lucide-react"
+import { Activity, Award, Target } from "lucide-react"
 
 export default function StudentAnalyticsPage() {
   const { user } = useUser()
@@ -17,10 +16,8 @@ export default function StudentAnalyticsPage() {
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    // Collection Group query for all attempts by this student
     return query(
-      collectionGroup(db, "quizAttempts"), 
-      where("studentId", "==", user.uid),
+      collection(db, "users", user.uid, "quizAttempts"),
       orderBy("submissionDate", "asc")
     )
   }, [db, user?.uid])

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { BookOpen, Brain, FileText, ArrowRight, TrendingUp } from "lucide-react"
-import { doc, collection, query, where, orderBy, collectionGroup } from "firebase/firestore"
+import { doc, collection, query, where, orderBy } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 
@@ -33,12 +33,12 @@ export default function StudentDashboard() {
   }, [db, user?.uid])
   const { data: userClasses, isLoading: classesLoading } = useCollection(classesQuery)
 
-  // 3. Fetch User's Quiz Attempts via Collection Group (matches security rules better)
+  // 3. Fetch User's Quiz Attempts from their own subcollection (simpler & safer)
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
-      collectionGroup(db, "quizAttempts"),
-      where("studentId", "==", user.uid)
+      collection(db, "users", user.uid, "quizAttempts"),
+      orderBy("submissionDate", "desc")
     )
   }, [db, user?.uid])
   const { data: quizAttempts, isLoading: attemptsLoading } = useCollection(quizAttemptsQuery)
@@ -60,7 +60,7 @@ export default function StudentDashboard() {
     }
   }, [quizAttempts, userClasses])
 
-  // Prepare Chart Data (Sorting manually to avoid needing composite index immediately)
+  // Prepare Chart Data
   const chartData = useMemo(() => {
     if (!quizAttempts) return []
     return [...quizAttempts]

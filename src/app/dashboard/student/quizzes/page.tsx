@@ -1,12 +1,10 @@
-
 "use client"
 
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { BookOpen, CheckCircle2, Clock, AlertCircle } from "lucide-react"
-import { collectionGroup, query, where, orderBy } from "firebase/firestore"
+import { BookOpen, CheckCircle2, AlertCircle } from "lucide-react"
+import { collection, query, orderBy } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,13 +13,11 @@ export default function StudentQuizzesPage() {
   const { user } = useUser()
   const db = useFirestore()
 
-  // Fetch all quizzes where the student is a member of the class
-  // For MVP, we'll fetch attempts to show historical data
+  // Fetch all quiz attempts from the user's specific collection
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
-      collectionGroup(db, "quizAttempts"), 
-      where("studentId", "==", user.uid),
+      collection(db, "users", user.uid, "quizAttempts"), 
       orderBy("submissionDate", "desc")
     )
   }, [db, user?.uid])
