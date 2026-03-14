@@ -9,41 +9,25 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // --- Collection Rules ---
-
-    // Global permission for prototyping: Allow authenticated users to read and write all documents.
-    // This resolves enrollment and content access issues immediately.
+    // --- Global Prototyping Rule ---
+    // Explicitly allow all read/write operations for authenticated users to ensure 
+    // smooth prototyping and prevent "Missing or insufficient permissions" errors.
     // Deployment trigger: Atomic broad-access policy applied.
     match /{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    // User profiles - keeping ownership logic for sub-collections
+    // Specific match blocks for clarity and future refinement
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
-      
-      match /quizAttempts/{attemptId} {
-        allow read, write: if isSignedIn();
-      }
+      allow read, write: if isSignedIn();
     }
 
-    // Classes
     match /classes/{classId} {
       allow read, write: if isSignedIn();
-
-      match /{allSubcollections=**} {
-        allow read, write: if isSignedIn();
-      }
     }
 
-    // Chat Sessions
     match /chatSessions/{sessionId} {
       allow read, write: if isSignedIn();
-
-      match /messages/{messageId} {
-        allow read, write: if isSignedIn();
-      }
     }
   }
 }

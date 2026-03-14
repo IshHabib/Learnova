@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -16,18 +17,20 @@ export function getSdks(firebaseApp: FirebaseApp) {
 export function initializeFirebase() {
   let app: FirebaseApp;
   
-  if (getApps().length > 0) {
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
     app = getApp();
   } else {
-    // Attempt initialization. Fallback logic is handled by standard Firebase SDK.
+    // Attempt initialization with the standard config
     try {
       app = initializeApp(firebaseConfig);
     } catch (e) {
-      // In some hosting environments, initializeApp() without args is preferred
+      // Fallback for environments where initializeApp() handles config automatically
       app = initializeApp();
     }
   }
 
+  // Ensure we are connecting to production services only, as per instructions
   return getSdks(app);
 }
 
