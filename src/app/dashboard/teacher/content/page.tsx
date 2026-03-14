@@ -527,7 +527,7 @@ export default function TeacherContentPage() {
         </Dialog>
 
         <Dialog open={showQuizCreate} onOpenChange={setShowQuizCreate}>
-          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+          <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
             <DialogHeader className="p-6 border-b bg-white shrink-0">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <BookText className="h-5 w-5" />
@@ -536,7 +536,7 @@ export default function TeacherContentPage() {
               <DialogDescription>Create a structured assessment for your students.</DialogDescription>
             </DialogHeader>
             
-            <ScrollArea className="flex-1 bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto bg-slate-50/50">
               <div className="p-6 space-y-8">
                 {/* General Information Section */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
@@ -547,13 +547,13 @@ export default function TeacherContentPage() {
                         value={quizData.title} 
                         onChange={e => setQuizData({...quizData, title: e.target.value})} 
                         placeholder="e.g. Midterm Biology" 
-                        className="bg-slate-50/50"
+                        className="bg-slate-50/50 focus:bg-white transition-colors"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Target Classroom</Label>
                       <Select onValueChange={val => setQuizData({...quizData, classId: val})}>
-                        <SelectTrigger className="bg-slate-50/50">
+                        <SelectTrigger className="bg-slate-50/50 focus:bg-white transition-colors">
                           <SelectValue placeholder="Select class..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -568,7 +568,7 @@ export default function TeacherContentPage() {
                       value={quizData.description} 
                       onChange={e => setQuizData({...quizData, description: e.target.value})} 
                       placeholder="Enter instructions for your students..." 
-                      className="bg-slate-50/50 min-h-[100px]"
+                      className="bg-slate-50/50 min-h-[100px] focus:bg-white transition-colors"
                     />
                   </div>
                 </div>
@@ -668,7 +668,7 @@ export default function TeacherContentPage() {
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
 
             <DialogFooter className="p-4 border-t bg-white shrink-0">
               <Button 
