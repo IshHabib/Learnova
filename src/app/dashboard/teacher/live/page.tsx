@@ -67,7 +67,14 @@ export default function TeacherLivePage() {
   const [copiedKey, setCopiedKey] = useState(false)
   const [copiedUrl, setCopiedUrl] = useState(false)
   const zenstreamRTMP = "rtmp://live.zenstream.io/app"
-  const zenstreamKey = `zn_${Math.random().toString(36).substring(7)}_${user?.uid?.substring(0, 5)}`
+  const [zenstreamKey, setZenstreamKey] = useState("")
+
+  // Generate Zenstream Key on mount/user change to avoid hydration mismatch
+  useEffect(() => {
+    if (user?.uid) {
+      setZenstreamKey(`zn_${Math.random().toString(36).substring(7)}_${user.uid.substring(0, 5)}`)
+    }
+  }, [user?.uid])
 
   // Settings State
   const [showSettings, setShowSettings] = useState(false)
@@ -337,7 +344,7 @@ export default function TeacherLivePage() {
                         Your Zenstream Key
                       </Label>
                       <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <code className="text-xs font-mono text-slate-600 flex-1 truncate">••••••••••••••••</code>
+                        <code className="text-xs font-mono text-slate-600 flex-1 truncate">{zenstreamKey || "••••••••••••••••"}</code>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(zenstreamKey, 'key')}>
                           {copiedKey ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
                         </Button>

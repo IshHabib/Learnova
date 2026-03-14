@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -49,6 +48,7 @@ export default function StudentLiveLecturePage() {
   const [messages, setMessages] = useState([
     { id: 1, user: "System", text: "Connected to Zenstream RTMP Gateway. Low-latency broadcast optimized.", isSystem: true },
   ])
+  const [participantCount, setParticipantCount] = useState(0)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -56,8 +56,11 @@ export default function StudentLiveLecturePage() {
   const classRef = useMemoFirebase(() => doc(db, "classes", classId), [db, classId])
   const { data: classData, isLoading } = useDoc(classRef)
 
-  // Initialize Student Camera (PIP)
+  // Initialize Student Camera (PIP) and dynamic participants
   useEffect(() => {
+    // Set participant count here to avoid hydration mismatch
+    setParticipantCount(Math.floor(Math.random() * 20) + 10)
+
     const getCameraPermission = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -115,7 +118,7 @@ export default function StudentLiveLecturePage() {
     }
   }
 
-  if (isLoading) return <div className="p-8 flex items-center gap-2"><Activity className="animate-spin" /> Negotiating connection...</div>
+  if (isLoading) return <div className="p-8 flex items-center gap-2 bg-slate-950 text-white h-screen w-full"><Activity className="animate-spin" /> Negotiating connection...</div>
 
   if (!classData?.isLive) {
     return (
@@ -206,7 +209,7 @@ export default function StudentLiveLecturePage() {
                     </div>
                     <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md text-white text-[10px] px-4 py-2 rounded-full shadow-lg border border-white/10 font-bold uppercase tracking-wider">
                       <Users className="h-3 w-3 text-primary" />
-                      <span>{Math.floor(Math.random() * 20) + 10} Participants</span>
+                      <span>{participantCount} Participants</span>
                     </div>
                   </div>
 
