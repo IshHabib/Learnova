@@ -5,7 +5,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { collection, query, orderBy } from "firebase/firestore"
+import { collection } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 import { Activity, Award, Target } from "lucide-react"
@@ -16,14 +16,21 @@ export default function StudentAnalyticsPage() {
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    // Querying the specific user's subcollection directly
-    return query(
-      collection(db, "users", user.uid, "quizAttempts"),
-      orderBy("submissionDate", "asc")
-    )
+    // Fetch directly from the subcollection without orderBy to avoid index requirements
+    return collection(db, "users", user.uid, "quizAttempts")
   }, [db, user?.uid])
 
-  const { data: attempts, isLoading } = useCollection(attemptsQuery)
+  const { data: unsortedAttempts, isLoading } = useCollection(attemptsQuery)
+
+  // Sort in memory to avoid Firebase Index complexity
+  const attempts = useMemo(() => {
+    if (!unsortedAttempts) return []
+    return [...unsortedAttempts].sort((a, b) => {
+      const dateA = a.submissionDate ? new Date(a.submissionDate).getTime() : 0
+      const dateB = b.submissionDate ? new Date(b.submissionDate).getTime() : 0
+      return dateA - dateB // Chronological order for chart
+    })
+  }, [unsortedAttempts])
 
   const chartData = useMemo(() => {
     return (attempts || []).map((attempt, index) => ({

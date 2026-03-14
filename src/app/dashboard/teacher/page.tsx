@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle, Info } from "lucide-react"
+import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle } from "lucide-react"
 import { doc, collection, query, where, getDocs } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 
@@ -32,7 +32,7 @@ export default function TeacherDashboard() {
   }, [db, user?.uid])
   const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
-  // 3. Fetch Student Quiz Attempts
+  // 3. Fetch Student Quiz Attempts Defensively
   useEffect(() => {
     if (!db || !user?.uid || classesLoading || !teacherClasses) {
       if (!classesLoading && teacherClasses?.length === 0) {
@@ -59,8 +59,9 @@ export default function TeacherDashboard() {
       try {
         const allAttempts: any[] = []
         for (const studentId of Array.from(studentIds)) {
-          // Wrapped in try/catch to prevent one student's failure from stopping the whole list
           try {
+            // Fetch directly from the subcollection. This is safer than collectionGroup
+            // during prototyping to avoid index requirements.
             const attemptsSnap = await getDocs(
               query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
             )

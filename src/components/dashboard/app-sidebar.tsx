@@ -43,12 +43,15 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserName(user.displayName || "User")
+        // Added error callback to snapshot listener to prevent unhandled exceptions
         const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
           if (doc.exists()) {
             const data = doc.data()
             setUserName(data.name || data.displayName || user.displayName || "User")
             setUserRole(data.role || role)
           }
+        }, (error) => {
+          console.warn("Sidebar: Failed to fetch user profile", error)
         })
         return () => unsubscribeDoc()
       } else {

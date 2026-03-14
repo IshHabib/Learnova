@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -19,7 +19,7 @@ import {
   XCircle,
   Info
 } from "lucide-react"
-import { collection, query, orderBy, doc, setDoc } from "firebase/firestore"
+import { collection, doc, setDoc } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -56,16 +56,22 @@ export default function StudentQuizzesPage() {
   const [showReview, setShowReview] = useState(false)
   const [finalScore, setFinalScore] = useState(0)
 
-  // Fetch History - Direct subcollection query
+  // Fetch History - Removed orderBy to avoid index errors
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    return query(
-      collection(db, "users", user.uid, "quizAttempts"),
-      orderBy("submissionDate", "desc")
-    )
+    return collection(db, "users", user.uid, "quizAttempts")
   }, [db, user?.uid])
 
-  const { data: attempts, isLoading } = useCollection(attemptsQuery)
+  const { data: unsortedAttempts, isLoading } = useCollection(attemptsQuery)
+
+  const attempts = useMemo(() => {
+    if (!unsortedAttempts) return []
+    return [...unsortedAttempts].sort((a, b) => {
+      const dateA = a.submissionDate ? new Date(a.submissionDate).getTime() : 0
+      const dateB = b.submissionDate ? new Date(b.submissionDate).getTime() : 0
+      return dateB - dateA
+    })
+  }, [unsortedAttempts])
 
   const handleGenerate = async () => {
     if (!topic.trim()) return
@@ -371,8 +377,8 @@ export default function StudentQuizzesPage() {
           <div>
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Learning History</h2>
             {isLoading ? (
-              <div className="space-y-4">
-                {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+              <div className="space-y-3">
+                {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
               </div>
             ) : !attempts || attempts.length === 0 ? (
               <div className="py-20 text-center border-2 border-dashed rounded-2xl bg-slate-50/50">

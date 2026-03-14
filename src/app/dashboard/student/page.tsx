@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { BookOpen, Brain, FileText, ArrowRight, TrendingUp } from "lucide-react"
-import { doc, collection, query, where, orderBy } from "firebase/firestore"
+import { doc, collection, query, where } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 
@@ -33,13 +33,20 @@ export default function StudentDashboard() {
 
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    // Changed from collectionGroup to direct collection to avoid index/permission complexity
-    return query(
-      collection(db, "users", user.uid, "quizAttempts"),
-      orderBy("submissionDate", "desc")
-    )
+    // Removed orderBy to avoid index errors during prototyping
+    return collection(db, "users", user.uid, "quizAttempts")
   }, [db, user?.uid])
-  const { data: quizAttempts, isLoading: attemptsLoading } = useCollection(quizAttemptsQuery)
+  const { data: unsortedAttempts, isLoading: attemptsLoading } = useCollection(quizAttemptsQuery)
+
+  // Sort in memory to avoid Firebase Index requirements
+  const quizAttempts = useMemo(() => {
+    if (!unsortedAttempts) return []
+    return [...unsortedAttempts].sort((a, b) => {
+      const dateA = a.submissionDate ? new Date(a.submissionDate).getTime() : 0
+      const dateB = b.submissionDate ? new Date(b.submissionDate).getTime() : 0
+      return dateB - dateA
+    })
+  }, [unsortedAttempts])
 
   const stats = useMemo(() => {
     const attempts = quizAttempts || []
