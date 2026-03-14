@@ -14,7 +14,7 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    // User profiles - allow read for all signed-in users
+    // User profiles
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
@@ -25,7 +25,7 @@ service cloud.firestore {
       }
     }
 
-    // Classes - readable by all signed-in users (to allow joining)
+    // Classes
     match /classes/{classId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn(); 
@@ -35,44 +35,37 @@ service cloud.firestore {
       );
       allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
 
-      // Sub-collections under a specific class
+      // Sub-collections - direct access
       match /notes/{id} { allow read, write: if isSignedIn(); }
       match /videos/{id} { allow read, write: if isSignedIn(); }
       match /quizzes/{id} { allow read, write: if isSignedIn(); }
       match /studyGroups/{id} { allow read, write: if isSignedIn(); }
     }
 
-    // Collection Group rules for cross-class queries
-    // Split into individual statements to be "provably safe" for the query optimizer
+    // --- Collection Group Rules (Provably Safe for Queries) ---
     
     match /{path=**}/notes/{noteId} {
-      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
-      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
     }
 
     match /{path=**}/videos/{videoId} {
-      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
-      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
     }
 
     match /{path=**}/quizzes/{quizId} {
-      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
-      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
     }
 
     match /{path=**}/studyGroups/{groupId} {
-      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
-      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
       allow get: if isSignedIn();
     }
 
     match /{path=**}/quizAttempts/{attemptId} {
-      // Split list rules to avoid "OR" logic complexity in "provably safe" checks
-      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+      allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
       allow get: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
     }
@@ -82,12 +75,13 @@ service cloud.firestore {
       allow get, list: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
-    }
 
-    // Messages
-    match /chatSessions/{sessionId}/messages/{messageId} {
-      allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/chatSessions/$(sessionId)).data.participantIds);
-      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+      // Messages - Denormalized check for provably safe listing
+      match /messages/{messageId} {
+        allow list: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
+        allow get: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+      }
     }
   }
 }

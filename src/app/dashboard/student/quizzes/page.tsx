@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -57,7 +56,7 @@ export default function StudentQuizzesPage() {
   const [showReview, setShowReview] = useState(false)
   const [finalScore, setFinalScore] = useState(0)
 
-  // Fetch History
+  // Fetch History - Direct subcollection query
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
@@ -122,16 +121,17 @@ export default function StudentQuizzesPage() {
     try {
       const attemptRef = doc(db, "users", user.uid, "quizAttempts", attemptId)
       
-      // Critical: Save all question data including explanations for later review
+      // Save full attempt data for later review
       await setDoc(attemptRef, {
         id: attemptId,
         studentId: user.uid,
+        teacherId: "self-study", // Denormalized for collectionGroup provably safe queries
         quizId: "ai_generated",
         score: calculatedScore,
         submissionDate: new Date().toISOString(),
         feedback: `You got ${correctCount} out of ${activeQuiz.questions.length} correct.`,
         title: activeQuiz.quizTitle,
-        questions: activeQuiz.questions, // Ensuring the full array of questions is saved
+        questions: activeQuiz.questions,
         userAnswers: selectedAnswers
       })
       
@@ -150,7 +150,6 @@ export default function StudentQuizzesPage() {
   }
 
   const handleViewPastAttempt = (attempt: any) => {
-    // Reconstruct the quiz state from the saved attempt document
     if (!attempt.questions || attempt.questions.length === 0) {
       toast({ title: "Cannot load review", description: "This attempt doesn't contain question data.", variant: "destructive" })
       return
@@ -167,7 +166,6 @@ export default function StudentQuizzesPage() {
 
   const progress = activeQuiz ? ((currentQuestionIndex + 1) / activeQuiz.questions.length) * 100 : 0
 
-  // Review Screen
   if (showReview && activeQuiz) {
     return (
       <SidebarProvider>
@@ -259,7 +257,6 @@ export default function StudentQuizzesPage() {
     )
   }
 
-  // Active Quiz Screen (Player)
   if (activeQuiz) {
     const currentQ = activeQuiz.questions[currentQuestionIndex]
     return (
