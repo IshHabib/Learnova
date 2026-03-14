@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { ChevronLeft, MessageSquare, Send, Users, Radio, AlertCircle } from "lucide-react"
+import { ChevronLeft, MessageSquare, Send, Users, Radio, AlertCircle, Video } from "lucide-react"
 import { doc } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase"
 import { Input } from "@/components/ui/input"
