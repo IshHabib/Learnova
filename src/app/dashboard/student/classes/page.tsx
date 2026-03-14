@@ -60,6 +60,18 @@ export default function StudentClassesPage() {
         return
       }
 
+      // Check if student is already in the class
+      const currentStudents = classSnap.data()?.studentIds || []
+      if (currentStudents.includes(user.uid)) {
+        toast({
+          title: "Already Enrolled",
+          description: "You are already a member of this classroom.",
+        })
+        setClassCode("")
+        setIsJoining(false)
+        return
+      }
+
       const updateData = {
         studentIds: arrayUnion(user.uid)
       }

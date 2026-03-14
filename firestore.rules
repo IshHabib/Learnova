@@ -36,11 +36,14 @@ service cloud.firestore {
 
     // Classes and their content
     match /classes/{classId} {
+      // Broad read for all signed in users
       allow read: if isSignedIn();
+      
+      // Allow any signed in user to create or update a class (required for enrollment)
       allow create: if isSignedIn();
-      // Allow any signed-in user to update (join class or manage students)
-      // In a production app, we'd further restrict this to specific fields
-      allow update: if isSignedIn(); 
+      allow update: if isSignedIn();
+      
+      // Only the teacher can delete the class
       allow delete: if isSignedIn() && (
         resource.data.teacherId == request.auth.uid
       );
