@@ -7,14 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { BookOpen, Brain, FileText, ArrowRight, TrendingUp } from "lucide-react"
+import { BookOpen, Brain, FileText, ArrowRight, TrendingUp, Radio } from "lucide-react"
 import { doc, collection, query, where } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
+import { useRouter } from "next/navigation"
 
 export default function StudentDashboard() {
   const { user } = useUser()
   const db = useFirestore()
+  const router = useRouter()
   
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -31,14 +33,23 @@ export default function StudentDashboard() {
   }, [db, user?.uid])
   const { data: userClasses, isLoading: classesLoading } = useCollection(classesQuery)
 
+  // Live classes listener
+  const liveClassesQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return query(
+      collection(db, "classes"),
+      where("studentIds", "array-contains", user.uid),
+      where("isLive", "==", true)
+    )
+  }, [db, user?.uid])
+  const { data: liveClasses } = useCollection(liveClassesQuery)
+
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    // Removed orderBy to avoid index errors during prototyping
     return collection(db, "users", user.uid, "quizAttempts")
   }, [db, user?.uid])
   const { data: unsortedAttempts, isLoading: attemptsLoading } = useCollection(quizAttemptsQuery)
 
-  // Sort in memory to avoid Firebase Index requirements
   const quizAttempts = useMemo(() => {
     if (!unsortedAttempts) return []
     return [...unsortedAttempts].sort((a, b) => {
@@ -85,7 +96,7 @@ export default function StudentDashboard() {
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold font-headline text-foreground">Student Dashboard</h1>
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => window.location.href = "/dashboard/student/ai-assistant"}>
+              <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => router.push("/dashboard/student/ai-assistant")}>
                 <Brain className="mr-2 h-4 w-4" />
                 Ask AI
               </Button>
@@ -93,6 +104,27 @@ export default function StudentDashboard() {
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 space-y-8">
+          
+          {/* Live Sessions Banner */}
+          {liveClasses && liveClasses.length > 0 && (
+            <div className="animate-in slide-in-from-top-4 duration-500">
+              {liveClasses.map(cls => (
+                <div key={cls.id} className="bg-red-600 rounded-2xl p-4 text-white flex items-center justify-between shadow-lg mb-4">
+                  <div className="flex items-center gap-3">
+                    <Radio className="h-5 w-5 animate-pulse" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest opacity-80">Live Now</p>
+                      <p className="font-headline font-bold">{cls.name}: Interactive Lecture</p>
+                    </div>
+                  </div>
+                  <Button variant="secondary" size="sm" className="font-bold" onClick={() => router.push(`/dashboard/student/live/${cls.id}`)}>
+                    Join Class
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border-none bg-primary text-primary-foreground">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -155,7 +187,7 @@ export default function StudentDashboard() {
                 {stats.quizzesCompleted === 0 ? (
                   <div className="p-4 rounded-lg bg-secondary/30 text-center">
                     <p className="text-sm text-muted-foreground">Take your first quiz to get personalized AI recommendations!</p>
-                    <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.href = "/dashboard/student/quizzes"}>Go to Quizzes</Button>
+                    <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push("/dashboard/student/quizzes")}>Go to Quizzes</Button>
                   </div>
                 ) : (
                   <div className="p-3 rounded-lg bg-secondary/50 border border-secondary flex items-start gap-3">
@@ -176,7 +208,7 @@ export default function StudentDashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold font-headline text-foreground">My Classrooms</h2>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/dashboard/student/classes"}>View All</Button>
+              <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/student/classes")}>View All</Button>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {isLoading ? (
@@ -184,11 +216,11 @@ export default function StudentDashboard() {
               ) : userClasses?.length === 0 ? (
                 <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl">
                   <p className="text-muted-foreground">You haven't joined any classes yet.</p>
-                  <Button variant="outline" className="mt-4" onClick={() => window.location.href = "/dashboard/student/classes"}>Explore Classes</Button>
+                  <Button variant="outline" className="mt-4" onClick={() => router.push("/dashboard/student/classes")}>Explore Classes</Button>
                 </div>
               ) : (
                 userClasses?.map((item, i) => (
-                  <Card key={i} className="shadow-sm border-none overflow-hidden group cursor-pointer" onClick={() => window.location.href = `/dashboard/student/classes`}>
+                  <Card key={i} className="shadow-sm border-none overflow-hidden group cursor-pointer" onClick={() => router.push(`/dashboard/student/classes/${item.id}`)}>
                     <div className="h-32 bg-primary/5 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                       <FileText className="h-10 w-10 text-primary opacity-50" />
                     </div>

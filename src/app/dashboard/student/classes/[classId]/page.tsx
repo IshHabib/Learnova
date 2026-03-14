@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -8,12 +7,13 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Video, BookOpen, ChevronLeft, Eye, PlayCircle, Clock, Sparkles, BookText } from "lucide-react"
+import { FileText, Video, BookOpen, ChevronLeft, Eye, PlayCircle, Clock, Sparkles, BookText, Radio } from "lucide-react"
 import { doc, collection } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 export default function ClassDetailPage() {
   const params = useParams()
@@ -70,6 +70,26 @@ export default function ClassDetailPage() {
         </header>
 
         <main className="p-4 md:p-6 lg:p-8">
+          
+          {classData?.isLive && (
+            <Alert className="mb-8 bg-red-50 border-red-200 shadow-sm animate-in slide-in-from-top-4 duration-500">
+              <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-red-600 flex items-center justify-center">
+                    <Radio className="h-6 w-6 text-white animate-pulse" />
+                  </div>
+                  <div>
+                    <AlertTitle className="text-red-900 font-extrabold text-lg">CLASS IS LIVE NOW</AlertTitle>
+                    <AlertDescription className="text-red-700 font-medium">Your instructor has started a live lecture session.</AlertDescription>
+                  </div>
+                </div>
+                <Button variant="destructive" className="font-bold px-8 h-12 shadow-lg hover:shadow-red-200 transition-all" onClick={() => router.push(`/dashboard/student/live/${classId}`)}>
+                  Join Live Lecture
+                </Button>
+              </div>
+            </Alert>
+          )}
+
           <div className="mb-8">
             <h2 className="text-3xl font-bold font-headline mb-2">{classData?.name}</h2>
             <p className="text-muted-foreground">{classData?.subject} • {classData?.description || "Digital Learning Environment"}</p>

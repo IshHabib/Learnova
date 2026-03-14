@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -6,10 +5,9 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Video, Radio, Users, Mic, Camera, Settings, MicOff, CameraOff, Power, Monitor, ShieldCheck, Sparkles } from "lucide-react"
-import { collection, query, where } from "firebase/firestore"
+import { Video, Radio, Users, Mic, Camera, Settings, MicOff, CameraOff, Power, Monitor, ShieldCheck, Sparkles, Loader2 } from "lucide-react"
+import { collection, query, where, doc, updateDoc } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
@@ -32,6 +30,7 @@ export default function TeacherLivePage() {
 
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null)
   const [isLive, setIsLive] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [isMicOn, setIsMicOn] = useState(true)
   const [isCameraOn, setIsCameraOn] = useState(true)
@@ -123,7 +122,7 @@ export default function TeacherLivePage() {
     toast({ title: "Hardware Updated", description: `Switched to selected ${type} device.` })
   }
 
-  const toggleLive = () => {
+  const toggleLive = async () => {
     if (!selectedClassId) {
       toast({
         title: "Selection Required",
@@ -133,20 +132,38 @@ export default function TeacherLivePage() {
       return
     }
 
-    if (!isLive) {
-      setIsLive(true)
-      setViewers(Math.floor(Math.random() * 15) + 5)
-      toast({
-        title: "You are now Live!",
-        description: `Broadcasting to ${classes?.find(c => c.id === selectedClassId)?.name}.`,
+    setIsUpdating(true)
+    const classRef = doc(db, "classes", selectedClassId)
+    const newStatus = !isLive
+
+    try {
+      await updateDoc(classRef, {
+        isLive: newStatus,
+        lastLiveAt: newStatus ? new Date().toISOString() : null
       })
-    } else {
-      setIsLive(false)
-      setViewers(0)
+
+      setIsLive(newStatus)
+      if (newStatus) {
+        setViewers(Math.floor(Math.random() * 15) + 5)
+        toast({
+          title: "You are now Live!",
+          description: `Broadcasting to ${classes?.find(c => c.id === selectedClassId)?.name}.`,
+        })
+      } else {
+        setViewers(0)
+        toast({
+          title: "Stream Ended",
+          description: "Your lecture session has been closed.",
+        })
+      }
+    } catch (error: any) {
       toast({
-        title: "Stream Ended",
-        description: "Your lecture session has been closed.",
+        title: "Error updating live status",
+        description: error.message,
+        variant: "destructive"
       })
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -241,9 +258,9 @@ export default function TeacherLivePage() {
                     variant={isLive ? "destructive" : "default"} 
                     className="px-8 rounded-xl font-bold h-10"
                     onClick={toggleLive}
-                    disabled={hasCameraPermission === false}
+                    disabled={hasCameraPermission === false || isUpdating}
                   >
-                    <Power className="mr-2 h-4 w-4" />
+                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Power className="mr-2 h-4 w-4" />}
                     {isLive ? "End Stream" : "Go Live"}
                   </Button>
                   
