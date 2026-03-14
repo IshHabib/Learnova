@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,12 +9,15 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle, Info } from "lucide-react"
-import { doc, collection, query, where, collectionGroup } from "firebase/firestore"
+import { doc, collection, query, where, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 
 export default function TeacherDashboard() {
   const { user } = useUser()
   const db = useFirestore()
+  
+  const [teacherAttempts, setTeacherAttempts] = useState<any[]>([])
+  const [attemptsLoading, setAttemptsLoading] = useState(true)
 
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -28,14 +31,37 @@ export default function TeacherDashboard() {
   }, [db, user?.uid])
   const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
-  const teacherAttemptsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null
-    return query(
-      collectionGroup(db, "quizAttempts"), 
-      where("teacherId", "==", user.uid)
-    )
-  }, [db, user?.uid])
-  const { data: teacherAttempts, isLoading: attemptsLoading, error: attemptsError } = useCollection(teacherAttemptsQuery)
+  // Fetch attempts by iterating through students in teacher's classes to avoid collectionGroup index
+  useEffect(() => {
+    if (!db || !user?.uid || classesLoading || !teacherClasses) return
+
+    const studentIds = new Set<string>()
+    teacherClasses.forEach(cls => {
+      cls.studentIds?.forEach((id: string) => studentIds.add(id))
+    })
+
+    if (studentIds.size === 0) {
+      setTeacherAttempts([])
+      setAttemptsLoading(false)
+      return
+    }
+
+    const fetchAttempts = async () => {
+      const allAttempts: any[] = []
+      for (const studentId of Array.from(studentIds)) {
+        const attemptsSnap = await getDocs(
+          query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
+        )
+        attemptsSnap.forEach(doc => {
+          allAttempts.push({ id: doc.id, ...doc.data() })
+        })
+      }
+      setTeacherAttempts(allAttempts)
+      setAttemptsLoading(false)
+    }
+
+    fetchAttempts()
+  }, [db, user?.uid, teacherClasses, classesLoading])
 
   const stats = useMemo(() => {
     const classes = teacherClasses || []
@@ -55,7 +81,6 @@ export default function TeacherDashboard() {
   }, [teacherClasses, teacherAttempts])
 
   const isLoading = userLoading || classesLoading || attemptsLoading
-  const isIndexError = attemptsError?.message?.includes("index")
 
   return (
     <SidebarProvider>
@@ -74,18 +99,6 @@ export default function TeacherDashboard() {
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 space-y-8">
-          {isIndexError && (
-            <Card className="border-amber-200 bg-amber-50 text-amber-900 shadow-none">
-              <CardContent className="p-4 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-bold">Database Indexing Required</p>
-                  <p className="opacity-80">To see aggregated student performance, please click the link in the error message to create the required Firestore index.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border-none bg-accent text-accent-foreground">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -119,12 +132,12 @@ export default function TeacherDashboard() {
             </Card>
             <Card className="shadow-sm border-none">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+                <CardTitle className="text-sm font-medium">Results Tracked</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{isLoading ? "..." : stats.pendingTasks}</div>
-                <p className="text-xs text-muted-foreground">Items to grade/review</p>
+                <p className="text-xs text-muted-foreground">Total attempts logged</p>
               </CardContent>
             </Card>
           </div>
@@ -139,7 +152,7 @@ export default function TeacherDashboard() {
                 <Button variant="outline" size="sm" onClick={() => window.location.href = "/dashboard/teacher/analytics"}>Details</Button>
               </CardHeader>
               <CardContent>
-                <PerformanceChart />
+                <PerformanceChart data={teacherAttempts.map((a, i) => ({ name: `Entry ${i + 1}`, score: a.score }))} />
               </CardContent>
             </Card>
             <Card className="md:col-span-3 shadow-sm border-none bg-primary/5">
@@ -173,7 +186,10 @@ export default function TeacherDashboard() {
           </div>
 
           <div>
-            <h2 className="text-xl font-bold font-headline mb-4 text-foreground">Your Classes</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold font-headline text-foreground">Your Classes</h2>
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/dashboard/teacher/classes"}>View All</Button>
+            </div>
             <div className="space-y-3">
               {isLoading ? (
                 Array(3).fill(0).map((_, i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)

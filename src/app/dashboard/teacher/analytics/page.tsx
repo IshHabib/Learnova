@@ -1,12 +1,12 @@
 
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { collectionGroup, query, where } from "firebase/firestore"
+import { collection, query, where, getDocs } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Brain, TrendingUp, Users, Target, AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,37 +15,63 @@ export default function TeacherAnalyticsPage() {
   const { user } = useUser()
   const db = useFirestore()
 
-  const attemptsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null
-    return query(
-      collectionGroup(db, "quizAttempts"), 
-      where("teacherId", "==", user.uid)
-    )
-  }, [db, user?.uid])
+  const [teacherAttempts, setTeacherAttempts] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const { data: attempts, isLoading, error: attemptsError } = useCollection(attemptsQuery)
+  const teacherClassesQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return query(collection(db, "classes"), where("teacherId", "==", user.uid))
+  }, [db, user?.uid])
+  const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
+
+  useEffect(() => {
+    if (!db || !user?.uid || classesLoading || !teacherClasses) return
+
+    const studentIds = new Set<string>()
+    teacherClasses.forEach(cls => {
+      cls.studentIds?.forEach((id: string) => studentIds.add(id))
+    })
+
+    if (studentIds.size === 0) {
+      setTeacherAttempts([])
+      setIsLoading(false)
+      return
+    }
+
+    const fetchAttempts = async () => {
+      const allAttempts: any[] = []
+      for (const studentId of Array.from(studentIds)) {
+        const attemptsSnap = await getDocs(
+          query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
+        )
+        attemptsSnap.forEach(doc => {
+          allAttempts.push({ id: doc.id, ...doc.data() })
+        })
+      }
+      setTeacherAttempts(allAttempts)
+      setIsLoading(false)
+    }
+
+    fetchAttempts()
+  }, [db, user?.uid, teacherClasses, classesLoading])
 
   const stats = useMemo(() => {
-    if (!attempts) return { avg: 0, count: 0 }
-    const total = attempts.reduce((acc, curr) => acc + (curr.score || 0), 0)
+    const total = teacherAttempts.reduce((acc, curr) => acc + (curr.score || 0), 0)
     return {
-      avg: attempts.length > 0 ? Math.round(total / attempts.length) : 0,
-      count: attempts.length
+      avg: teacherAttempts.length > 0 ? Math.round(total / teacherAttempts.length) : 0,
+      count: teacherAttempts.length
     }
-  }, [attempts])
+  }, [teacherAttempts])
 
   const chartData = useMemo(() => {
-    if (!attempts) return []
-    return [...attempts]
+    return [...teacherAttempts]
       .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
       .slice(-10) 
       .map((a, i) => ({
         name: a.submissionDate ? new Date(a.submissionDate).toLocaleDateString() : `Item ${i}`,
         score: a.score || 0
       }))
-  }, [attempts])
-
-  const isIndexError = attemptsError?.message?.includes("index")
+  }, [teacherAttempts])
 
   return (
     <SidebarProvider>
@@ -56,20 +82,8 @@ export default function TeacherAnalyticsPage() {
           <h1 className="text-lg font-semibold font-headline">Student Performance Analytics</h1>
         </header>
         <main className="p-4 md:p-6 lg:p-8 space-y-8">
-          {isIndexError && (
-            <Card className="border-amber-200 bg-amber-50 text-amber-900 shadow-none">
-              <CardContent className="p-4 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-bold">Aggregated Indexing Required</p>
-                  <p className="opacity-80">To enable cross-class performance tracking, please click the link provided in the error notification to build the required search index.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-none bg-primary text-primary-foreground">
+            <Card className="border-none bg-primary text-primary-foreground shadow-lg">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium opacity-80">Aggregate Class Score</CardTitle>
               </CardHeader>
@@ -92,11 +106,13 @@ export default function TeacherAnalyticsPage() {
             </Card>
             <Card className="border-none shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Students</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Learners</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">--</div>
-                <p className="text-xs text-muted-foreground mt-1">Unique learners reached</p>
+                <div className="text-3xl font-bold">
+                  {teacherClasses ? teacherClasses.reduce((acc, c) => acc + (c.studentIds?.length || 0), 0) : "--"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Unique students reached</p>
               </CardContent>
             </Card>
           </div>

@@ -1,24 +1,53 @@
+
 "use client"
 
+import { useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Users, Plus, Brain, Sparkles } from "lucide-react"
-import { collectionGroup, query, where } from "firebase/firestore"
+import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function TeacherGroupsPage() {
   const { user } = useUser()
   const db = useFirestore()
+  
+  const [groups, setGroups] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const groupsQuery = useMemoFirebase(() => {
+  const teacherClassesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    return query(collectionGroup(db, "studyGroups"), where("classTeacherId", "==", user.uid))
+    return query(collection(db, "classes"), where("teacherId", "==", user.uid))
   }, [db, user?.uid])
+  const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
-  const { data: groups, isLoading } = useCollection(groupsQuery)
+  useEffect(() => {
+    if (!db || !user?.uid || classesLoading || !teacherClasses) return
+
+    const classIds = teacherClasses.map(c => c.id)
+    if (classIds.length === 0) {
+      setGroups([])
+      setIsLoading(false)
+      return
+    }
+
+    const fetchGroups = async () => {
+      const allGroups: any[] = []
+      for (const classId of classIds) {
+        const groupsSnap = await getDocs(collection(db, "classes", classId, "studyGroups"))
+        groupsSnap.forEach(doc => {
+          allGroups.push({ id: doc.id, ...doc.data() })
+        })
+      }
+      setGroups(allGroups)
+      setIsLoading(false)
+    }
+
+    fetchGroups()
+  }, [db, user?.uid, teacherClasses, classesLoading])
 
   return (
     <SidebarProvider>
@@ -58,7 +87,7 @@ export default function TeacherGroupsPage() {
 
             {isLoading ? (
               Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)
-            ) : !groups || groups.length === 0 ? (
+            ) : groups.length === 0 ? (
               <div className="col-span-full py-24 text-center border-2 border-dashed rounded-2xl bg-muted/5">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h3 className="font-bold">No study groups created</h3>
@@ -66,7 +95,7 @@ export default function TeacherGroupsPage() {
               </div>
             ) : (
               groups.map(group => (
-                <Card key={group.id} className="border-none shadow-sm hover:ring-2 ring-primary/20 transition-all">
+                <Card key={group.id} className="border-none shadow-sm hover:ring-2 ring-primary/20 transition-all overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base font-bold">{group.name}</CardTitle>
                     <CardDescription className="text-[10px] uppercase tracking-wider">{group.studentIds?.length || 0} Members</CardDescription>
