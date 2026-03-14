@@ -34,12 +34,13 @@ service cloud.firestore {
     }
 
     // Classes and their content
+    // Broad permissions for prototype phase to allow self-enrollment and management
     match /classes/{classId} {
-      // Broad read/write for all signed in users during prototype phase
-      // This explicitly allows students to update the studentIds array for enrollment
-      allow read, write: if isSignedIn();
+      // Explicitly permitting all CRUD operations for signed-in users
+      // This ensures that students can 'update' the studentIds array
+      allow read, create, update, delete: if isSignedIn();
 
-      // Broad permissions for sub-collections to ensure reliable content delivery
+      // Broad permissions for sub-collections (notes, videos, quizzes, etc.)
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
