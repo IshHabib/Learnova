@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -5,7 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2 } from "lucide-react"
+import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2, Eye, X } from "lucide-react"
 import { collection, query, where, doc, deleteDoc, addDoc, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -22,10 +23,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { generateStudyNotes } from "@/ai/flows/generate-study-notes"
 
 export default function TeacherContentPage() {
-  const { user } = userUser()
+  const { user } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
   
@@ -44,6 +46,9 @@ export default function TeacherContentPage() {
   const [aiTopic, setAiTopic] = useState("")
   const [aiClassId, setAiClassId] = useState("")
 
+  // State for Viewing Note
+  const [viewingNote, setViewingNote] = useState<any | null>(null)
+
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(collection(db, "classes"), where("teacherId", "==", user.uid))
@@ -54,8 +59,6 @@ export default function TeacherContentPage() {
   useEffect(() => {
     if (!db || !user?.uid) return
 
-    // Instead of collectionGroup, fetch classes first then subcollections
-    // This avoids complex permission/index requirements for group queries
     const q = query(collection(db, "classes"), where("teacherId", "==", user.uid))
     
     const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -106,8 +109,9 @@ export default function TeacherContentPage() {
       
       const notesRef = collection(db, "classes", aiClassId, "notes")
       await addDoc(notesRef, {
-        title: `${aiTopic} - Study Notes`,
+        title: `${aiTopic} - AI Study Notes`,
         contentUrl: "data:text/markdown;base64," + btoa(result.notes),
+        content: result.notes, // Storing raw content for easier viewing
         classId: aiClassId,
         teacherId: user.uid,
         classTeacherId: user.uid,
@@ -161,6 +165,14 @@ export default function TeacherContentPage() {
       toast({ title: "Error uploading", description: error.message, variant: "destructive" })
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const handleView = (note: any) => {
+    if (note.isAIGenerated || note.content) {
+      setViewingNote(note)
+    } else {
+      window.open(note.contentUrl)
     }
   }
 
@@ -324,9 +336,9 @@ export default function TeacherContentPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
-                    <Button variant="secondary" size="sm" className="flex-1 h-8 text-[10px]" onClick={() => window.open(item.contentUrl)}>
-                      <ExternalLink className="mr-1.5 h-3 w-3" />
-                      View
+                    <Button variant="secondary" size="sm" className="flex-1 h-8 text-[10px]" onClick={() => handleView(item)}>
+                      <Eye className="mr-1.5 h-3 w-3" />
+                      Checkout
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(item.classId, item.id)}>
                       <Trash2 className="h-3 w-3" />
@@ -337,12 +349,41 @@ export default function TeacherContentPage() {
             </div>
           )}
         </main>
+
+        <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-xl font-headline">{viewingNote?.title}</DialogTitle>
+                  <DialogDescription>
+                    Generated Study Materials
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <ScrollArea className="flex-1 p-8 bg-slate-50/50">
+              <div className="max-w-3xl mx-auto prose prose-slate">
+                {viewingNote?.content ? (
+                  <div className="whitespace-pre-wrap font-sans leading-relaxed text-slate-800">
+                    {viewingNote.content}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">This note does not have text content to display. Please view the external link.</p>
+                    <Button variant="link" onClick={() => window.open(viewingNote?.contentUrl)}>
+                      Open External Resource <ExternalLink className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+            <DialogFooter className="p-4 border-t bg-white">
+              <Button onClick={() => setViewingNote(null)}>Close Viewer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )
-}
-
-function userUser() {
-  const { user } = useUser()
-  return { user }
 }
