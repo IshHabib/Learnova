@@ -527,7 +527,7 @@ export default function TeacherContentPage() {
         </Dialog>
 
         <Dialog open={showQuizCreate} onOpenChange={setShowQuizCreate}>
-          <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+          <DialogContent className="max-w-4xl max-h-[95vh] h-full flex flex-col p-0 overflow-hidden shadow-2xl border-none">
             <DialogHeader className="p-6 border-b bg-white shrink-0">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <BookText className="h-5 w-5" />
@@ -536,7 +536,7 @@ export default function TeacherContentPage() {
               <DialogDescription>Create a structured assessment for your students.</DialogDescription>
             </DialogHeader>
             
-            <div className="flex-1 overflow-y-auto bg-slate-50/50">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50/50">
               <div className="p-6 space-y-8">
                 {/* General Information Section */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
