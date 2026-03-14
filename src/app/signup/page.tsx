@@ -5,8 +5,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Brain, Lock, Mail, User, ChevronRight } from "lucide-react"
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
+import { doc, setDoc, getDoc } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 
 import { Button } from "@/components/ui/button"
@@ -40,8 +40,6 @@ export default function SignupPage() {
       
       await updateProfile(user, { displayName: fullName })
       
-      // Initialize with correct fields from backend.json schema
-      // No fake stats - the dashboard will query actual data
       await setDoc(doc(db, "users", user.uid), {
         id: user.uid,
         email,
@@ -59,6 +57,40 @@ export default function SignupPage() {
     } catch (error: any) {
       toast({
         title: "Signup Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignup = async () => {
+    setIsLoading(true)
+    const provider = new GoogleAuthProvider()
+    try {
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+      const userDocRef = doc(db, "users", user.uid)
+      const userDoc = await getDoc(userDocRef)
+      
+      if (!userDoc.exists()) {
+        // Initialize profile with selected role if user doesn't exist
+        await setDoc(userDocRef, {
+          id: user.uid,
+          email: user.email,
+          name: user.displayName || "Learner",
+          role: role,
+          createdAt: new Date().toISOString(),
+        })
+      }
+      
+      const finalRole = userDoc.exists() ? userDoc.data().role : role
+      router.push(`/dashboard/${finalRole}`)
+      
+    } catch (error: any) {
+      toast({
+        title: "Google Signup Failed",
         description: error.message,
         variant: "destructive",
       })
@@ -143,7 +175,13 @@ export default function SignupPage() {
               <span className="bg-background px-2 text-muted-foreground">Or sign up with</span>
             </div>
           </div>
-          <Button variant="outline" className="w-full" type="button">
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            type="button"
+            onClick={handleGoogleSignup}
+            disabled={isLoading}
+          >
             Google
           </Button>
           <p className="text-sm text-center text-muted-foreground">

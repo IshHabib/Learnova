@@ -5,8 +5,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Brain, Lock, Mail, ChevronRight } from "lucide-react"
-import { signInWithEmailAndPassword } from "firebase/auth"
-import { doc, getDoc } from "firebase/firestore"
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
+import { doc, getDoc, setDoc } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 
 import { Button } from "@/components/ui/button"
@@ -44,6 +44,40 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true)
+    const provider = new GoogleAuthProvider()
+    try {
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+      const userDocRef = doc(db, "users", user.uid)
+      const userDoc = await getDoc(userDocRef)
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        router.push(`/dashboard/${userData.role}`)
+      } else {
+        // First time Google user - initialize profile with selected role
+        await setDoc(userDocRef, {
+          id: user.uid,
+          email: user.email,
+          name: user.displayName || "Learner",
+          role: role,
+          createdAt: new Date().toISOString(),
+        })
+        router.push(`/dashboard/${role}`)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Google Login Failed",
         description: error.message,
         variant: "destructive",
       })
@@ -119,7 +153,13 @@ export default function LoginPage() {
               <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
             </div>
           </div>
-          <Button variant="outline" className="w-full" type="button">
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            type="button" 
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+          >
             Google
           </Button>
           <p className="text-sm text-center text-muted-foreground">
