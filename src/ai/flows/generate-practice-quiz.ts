@@ -39,6 +39,7 @@ const QuestionSchema = z.object({
     .optional()
     .describe('An array of possible answer options for multiple-choice questions.'),
   correctAnswer: z.string().describe('The correct answer to the question.'),
+  explanation: z.string().describe('A brief explanation of why the answer is correct.'),
 });
 
 const GeneratePracticeQuizOutputSchema = z.object({
@@ -67,6 +68,7 @@ Generate exactly {{{numQuestions}}} questions.
 All questions should be of the type '{{{questionType}}}'.
 
 For 'multiple_choice' questions, provide 4 distinct options.
+For every question, provide a clear 'explanation' for the correct answer.
 
 Context (if available):
 {{#if context}}

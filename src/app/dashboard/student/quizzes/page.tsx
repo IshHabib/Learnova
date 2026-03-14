@@ -1,12 +1,25 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { BookOpen, CheckCircle2, AlertCircle, Plus, Brain, Loader2, ChevronRight, Timer, Trophy } from "lucide-react"
+import { 
+  BookOpen, 
+  CheckCircle2, 
+  AlertCircle, 
+  Plus, 
+  Brain, 
+  Loader2, 
+  ChevronRight, 
+  Timer, 
+  Trophy,
+  XCircle,
+  ArrowLeft,
+  Info
+} from "lucide-react"
 import { collection, query, orderBy, doc, setDoc } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
@@ -25,6 +38,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { generatePracticeQuiz, GeneratePracticeQuizOutput } from "@/ai/flows/generate-practice-quiz"
 import { useToast } from "@/hooks/use-toast"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function StudentQuizzesPage() {
   const { user } = useUser()
@@ -42,6 +56,8 @@ export default function StudentQuizzesPage() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [quizFinished, setQuizFinished] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [finalScore, setFinalScore] = useState(0)
 
   // Fetch History
   const attemptsQuery = useMemoFirebase(() => {
@@ -68,6 +84,7 @@ export default function StudentQuizzesPage() {
       setCurrentQuestionIndex(0)
       setSelectedAnswers({})
       setQuizFinished(false)
+      setShowReview(false)
     } catch (error: any) {
       toast({
         title: "Generation Failed",
@@ -95,14 +112,14 @@ export default function StudentQuizzesPage() {
     if (!activeQuiz || !user) return
     setIsSubmitting(true)
     
-    let score = 0
+    let correctCount = 0
     activeQuiz.questions.forEach((q, idx) => {
       if (selectedAnswers[idx] === q.correctAnswer) {
-        score++
+        correctCount++
       }
     })
 
-    const finalScore = Math.round((score / activeQuiz.questions.length) * 100)
+    const calculatedScore = Math.round((correctCount / activeQuiz.questions.length) * 100)
     const attemptId = `attempt_${Date.now()}`
 
     try {
@@ -111,12 +128,20 @@ export default function StudentQuizzesPage() {
         id: attemptId,
         studentId: user.uid,
         quizId: "ai_generated",
-        score: finalScore,
+        score: calculatedScore,
         submissionDate: new Date().toISOString(),
-        feedback: `You got ${score} out of ${activeQuiz.questions.length} correct.`
+        feedback: `You got ${correctCount} out of ${activeQuiz.questions.length} correct.`,
+        title: activeQuiz.quizTitle
       })
+      
+      setFinalScore(calculatedScore)
       setQuizFinished(true)
-      toast({ title: "Quiz Submitted!", description: `Score: ${finalScore}%` })
+      setShowReview(true)
+      
+      toast({ 
+        title: "Quiz Submitted!", 
+        description: `Your score: ${calculatedScore}%`,
+      })
     } catch (error: any) {
       toast({ title: "Submission Error", description: error.message, variant: "destructive" })
     } finally {
@@ -124,10 +149,85 @@ export default function StudentQuizzesPage() {
     }
   }
 
-  if (activeQuiz && !quizFinished) {
-    const currentQ = activeQuiz.questions[currentQuestionIndex]
-    const progress = ((currentQuestionIndex + 1) / activeQuiz.questions.length) * 100
+  const progress = activeQuiz ? ((currentQuestionIndex + 1) / activeQuiz.questions.length) * 100 : 0
 
+  // Review Screen
+  if (showReview && activeQuiz) {
+    return (
+      <SidebarProvider>
+        <AppSidebar role="student" />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white/50 backdrop-blur">
+            <SidebarTrigger className="-ml-1" />
+            <h1 className="text-lg font-semibold font-headline">Results: {activeQuiz.quizTitle}</h1>
+          </header>
+          <main className="p-4 md:p-6 lg:p-8">
+            <div className="max-w-3xl mx-auto space-y-6">
+              <Card className="bg-primary text-primary-foreground">
+                <CardContent className="pt-6 text-center">
+                  <Trophy className="h-12 w-12 mx-auto mb-2 opacity-80" />
+                  <h2 className="text-3xl font-bold mb-1">{finalScore}%</h2>
+                  <p className="opacity-90">Great job completing your practice session!</p>
+                  <Button variant="secondary" className="mt-4" onClick={() => {
+                    setActiveQuiz(null)
+                    setShowReview(false)
+                  }}>
+                    Back to Quizzes
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Info className="h-5 w-5" />
+                  Detailed Review
+                </h3>
+                {activeQuiz.questions.map((q, idx) => {
+                  const isCorrect = selectedAnswers[idx] === q.correctAnswer
+                  return (
+                    <Card key={idx} className={`border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-4">
+                          <p className="font-medium">{idx + 1}. {q.questionText}</p>
+                          {isCorrect ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                          <div className={`p-2 rounded ${isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                            <span className="font-bold block text-xs uppercase opacity-60">Your Answer</span>
+                            {selectedAnswers[idx]}
+                          </div>
+                          {!isCorrect && (
+                            <div className="p-2 rounded bg-green-50">
+                              <span className="font-bold block text-xs uppercase opacity-60">Correct Answer</span>
+                              {q.correctAnswer}
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-slate-50 p-3 rounded-lg text-sm italic text-muted-foreground border">
+                          <span className="font-bold text-xs uppercase block not-italic mb-1">Explanation</span>
+                          {q.explanation}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
+  // Active Quiz Screen
+  if (activeQuiz) {
+    const currentQ = activeQuiz.questions[currentQuestionIndex]
     return (
       <SidebarProvider>
         <AppSidebar role="student" />
@@ -234,28 +334,11 @@ export default function StudentQuizzesPage() {
         </header>
 
         <main className="p-4 md:p-6 lg:p-8 space-y-8">
-          {quizFinished && (
-            <Card className="bg-primary/5 border-primary/20 border-2">
-              <CardContent className="pt-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-primary rounded-full flex items-center justify-center">
-                    <Trophy className="text-white h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold">Quiz Complete!</h3>
-                    <p className="text-sm text-muted-foreground">You finished your session. View your results below.</p>
-                  </div>
-                </div>
-                <Button onClick={() => setQuizFinished(false)}>Dismiss</Button>
-              </CardContent>
-            </Card>
-          )}
-
           <div>
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Quiz History</h2>
             {isLoading ? (
               <div className="space-y-3">
-                {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+                {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
               </div>
             ) : !attempts || attempts.length === 0 ? (
               <div className="p-12 text-center border rounded-xl bg-card">
