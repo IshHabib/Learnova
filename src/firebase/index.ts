@@ -19,12 +19,12 @@ export function initializeFirebase() {
   if (getApps().length > 0) {
     app = getApp();
   } else {
+    // Attempt initialization. Fallback logic is handled by standard Firebase SDK.
     try {
-      // First attempt: initialize using environment variables (standard for App Hosting)
-      app = initializeApp();
-    } catch (e) {
-      // Fallback: initialize using the local config object
       app = initializeApp(firebaseConfig);
+    } catch (e) {
+      // In some hosting environments, initializeApp() without args is preferred
+      app = initializeApp();
     }
   }
 
