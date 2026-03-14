@@ -31,6 +31,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 
 export function AppSidebar({ role = "student", ...props }: React.ComponentProps<typeof Sidebar> & { role?: "student" | "teacher" }) {
   const [userName, setUserName] = React.useState("User")
