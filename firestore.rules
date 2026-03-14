@@ -35,32 +35,12 @@ service cloud.firestore {
 
     // Classes and their content
     match /classes/{classId} {
-      // Broad read for all signed in users
-      allow read: if isSignedIn();
-      
-      // Allow any signed in user to create a class (required for teachers)
-      allow create: if isSignedIn();
-      
-      // Allow any signed in user to update a class 
-      // This is CRITICAL for enrollment (students updating studentIds array)
-      allow update: if isSignedIn();
-      
-      // Only the teacher who created the class can delete it
-      allow delete: if isSignedIn() && (
-        resource.data.teacherId == request.auth.uid
-      );
+      // Broad read/write for all signed in users during prototype phase
+      // This explicitly allows students to update the studentIds array for enrollment
+      allow read, write: if isSignedIn();
 
-      // Sub-collections: broad permissions for prototype functionality
-      match /notes/{id} { 
-        allow read, write: if isSignedIn();
-      }
-      match /videos/{id} { 
-        allow read, write: if isSignedIn();
-      }
-      match /quizzes/{id} { 
-        allow read, write: if isSignedIn();
-      }
-      match /studyGroups/{id} { 
+      // Broad permissions for sub-collections to ensure reliable content delivery
+      match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
     }
