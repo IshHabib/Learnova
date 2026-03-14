@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, Eye, BookText, Loader2, BookOpen, X, Trophy, AlertCircle, User, CheckCircle2 } from "lucide-react"
+import { FileText, Plus, Search, Sparkles, Trash2, Eye, BookText, Loader2, BookOpen, X, Trophy, AlertCircle, User, CheckCircle2, Video, PlayCircle, Clock } from "lucide-react"
 import { collection, query, where, doc, deleteDoc, addDoc, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -38,10 +38,15 @@ export default function TeacherContentPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
-  // State for manual upload
+  // State for manual upload (Notes)
   const [isUploading, setIsUploading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [newNote, setNewNote] = useState({ title: "", classId: "", contentUrl: "" })
+
+  // State for Video Upload
+  const [showVideoUpload, setShowVideoUpload] = useState(false)
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [newVideo, setNewVideo] = useState({ title: "", classId: "", videoUrl: "", duration: "" })
 
   // State for AI Generation
   const [isAiGenerating, setIsAiGenerating] = useState(false)
@@ -91,13 +96,20 @@ export default function TeacherContentPage() {
       const allContent: any[] = []
       for (const classId of classIds) {
         try {
+          // Fetch Notes
           const notesSnap = await getDocs(collection(db, "classes", classId, "notes"))
           notesSnap.forEach(doc => {
             allContent.push({ id: doc.id, ...doc.data(), classId, type: 'note' })
           })
+          // Fetch Quizzes
           const quizzesSnap = await getDocs(collection(db, "classes", classId, "quizzes"))
           quizzesSnap.forEach(doc => {
             allContent.push({ id: doc.id, ...doc.data(), classId, type: 'quiz' })
+          })
+          // Fetch Videos
+          const videosSnap = await getDocs(collection(db, "classes", classId, "videos"))
+          videosSnap.forEach(doc => {
+            allContent.push({ id: doc.id, ...doc.data(), classId, type: 'video' })
           })
         } catch (err) {
           console.warn(`Could not fetch content for class ${classId}`)
@@ -142,9 +154,13 @@ export default function TeacherContentPage() {
     fetchPerformance()
   }, [viewingQuiz, db, user?.uid, classes])
 
-  const handleDelete = async (classId: string, contentId: string, type: 'note' | 'quiz') => {
+  const handleDelete = async (classId: string, contentId: string, type: 'note' | 'quiz' | 'video') => {
     try {
-      const collectionName = type === 'note' ? 'notes' : 'quizzes'
+      let collectionName = ''
+      if (type === 'note') collectionName = 'notes'
+      else if (type === 'quiz') collectionName = 'quizzes'
+      else if (type === 'video') collectionName = 'videos'
+
       await deleteDoc(doc(db, "classes", classId, collectionName, contentId))
       toast({ title: "Content deleted successfully" })
     } catch (error: any) {
@@ -153,6 +169,37 @@ export default function TeacherContentPage() {
         description: error.message,
         variant: "destructive" 
       })
+    }
+  }
+
+  const handleVideoUpload = async () => {
+    if (!user || !newVideo.title || !newVideo.classId || !newVideo.videoUrl) return
+    setIsUploadingVideo(true)
+    try {
+      const selectedClass = classes?.find(c => c.id === newVideo.classId)
+      if (!selectedClass) throw new Error("Class not found")
+
+      const videosRef = collection(db, "classes", newVideo.classId, "videos")
+      await addDoc(videosRef, {
+        title: newVideo.title,
+        videoUrl: newVideo.videoUrl,
+        durationMinutes: parseInt(newVideo.duration) || 0,
+        classId: newVideo.classId,
+        teacherId: user.uid,
+        classTeacherId: user.uid,
+        classStudentIds: selectedClass.studentIds || [],
+        uploadDate: new Date().toISOString(),
+        isAIGeneratedSuggestion: false,
+        topics: []
+      })
+
+      toast({ title: "Video Posted", description: "The lesson is now available to students." })
+      setNewVideo({ title: "", classId: "", videoUrl: "", duration: "" })
+      setShowVideoUpload(false)
+    } catch (error: any) {
+      toast({ title: "Upload Failed", description: error.message, variant: "destructive" })
+    } finally {
+      setIsUploadingVideo(false)
     }
   }
 
@@ -292,6 +339,8 @@ export default function TeacherContentPage() {
       } else {
         window.open(item.contentUrl)
       }
+    } else if (item.type === 'video') {
+      window.open(item.videoUrl)
     } else {
       setViewingQuiz(item)
     }
@@ -317,6 +366,10 @@ export default function TeacherContentPage() {
               <Button variant="outline" size="sm" onClick={() => setShowQuizCreate(true)}>
                 <BookText className="mr-2 h-4 w-4" />
                 Assign Quiz
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowVideoUpload(true)}>
+                <Video className="mr-2 h-4 w-4" />
+                Post Video
               </Button>
               <Button size="sm" onClick={() => setShowUpload(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -350,11 +403,17 @@ export default function TeacherContentPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredContent.map(item => (
                 <Card key={item.id} className="border-none shadow-sm hover:shadow-md transition-all group overflow-hidden">
-                  <div className={`h-1.5 w-full ${item.type === 'quiz' ? 'bg-accent' : item.isAIGenerated ? 'bg-primary' : 'bg-slate-300'}`} />
+                  <div className={`h-1.5 w-full ${
+                    item.type === 'quiz' ? 'bg-accent' : 
+                    item.type === 'video' ? 'bg-indigo-500' :
+                    item.isAIGenerated ? 'bg-primary' : 'bg-slate-300'
+                  }`} />
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
                       <div className="h-8 w-8 rounded bg-primary/5 flex items-center justify-center">
-                        {item.type === 'quiz' ? <BookText className="h-4 w-4 text-accent" /> : <FileText className="h-4 w-4 text-primary" />}
+                        {item.type === 'quiz' ? <BookText className="h-4 w-4 text-accent" /> : 
+                         item.type === 'video' ? <Video className="h-4 w-4 text-indigo-500" /> :
+                         <FileText className="h-4 w-4 text-primary" />}
                       </div>
                       <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
                         {item.type}
@@ -367,8 +426,10 @@ export default function TeacherContentPage() {
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <Button variant="secondary" size="sm" className="flex-1 h-8 text-[10px]" onClick={() => handleView(item)}>
-                      <Eye className="mr-1.5 h-3 w-3" />
-                      {item.type === 'quiz' ? 'Review Results' : 'View'}
+                      {item.type === 'quiz' ? <Eye className="mr-1.5 h-3 w-3" /> : 
+                       item.type === 'video' ? <PlayCircle className="mr-1.5 h-3 w-3" /> :
+                       <Eye className="mr-1.5 h-3 w-3" />}
+                      {item.type === 'quiz' ? 'Review Results' : item.type === 'video' ? 'Watch Video' : 'View'}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 text-[10px] text-destructive hover:bg-destructive/5" onClick={() => handleDelete(item.classId, item.id, item.type)}>
                       <Trash2 className="h-3 w-3" />
@@ -379,6 +440,47 @@ export default function TeacherContentPage() {
             </div>
           )}
         </main>
+
+        <Dialog open={showVideoUpload} onOpenChange={setShowVideoUpload}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Video className="h-5 w-5 text-indigo-500" />
+                Post Educational Video
+              </DialogTitle>
+              <DialogDescription>Add a recorded lecture or educational resource to your class.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Lesson Title</Label>
+                <Input placeholder="e.g. Introduction to Organic Chemistry" value={newVideo.title} onChange={e => setNewVideo({...newVideo, title: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Classroom</Label>
+                  <Select onValueChange={val => setNewVideo({...newVideo, classId: val})}>
+                    <SelectTrigger><SelectValue placeholder="Choose class..." /></SelectTrigger>
+                    <SelectContent>{classes?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Duration (mins)</Label>
+                  <Input type="number" placeholder="15" value={newVideo.duration} onChange={e => setNewVideo({...newVideo, duration: e.target.value})} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Video URL</Label>
+                <Input placeholder="https://youtube.com/..." value={newVideo.videoUrl} onChange={e => setNewVideo({...newVideo, videoUrl: e.target.value})} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleVideoUpload} disabled={isUploadingVideo || !newVideo.title || !newVideo.classId || !newVideo.videoUrl}>
+                {isUploadingVideo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Post Lesson
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showAiGen} onOpenChange={setShowAiGen}>
           <DialogContent>
