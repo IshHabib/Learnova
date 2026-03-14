@@ -17,7 +17,6 @@ import {
   Timer, 
   Trophy,
   XCircle,
-  ArrowLeft,
   Info
 } from "lucide-react"
 import { collection, query, orderBy, doc, setDoc } from "firebase/firestore"
@@ -38,7 +37,6 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { generatePracticeQuiz, GeneratePracticeQuizOutput } from "@/ai/flows/generate-practice-quiz"
 import { useToast } from "@/hooks/use-toast"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function StudentQuizzesPage() {
   const { user } = useUser()
@@ -55,7 +53,6 @@ export default function StudentQuizzesPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [quizFinished, setQuizFinished] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [finalScore, setFinalScore] = useState(0)
 
@@ -83,7 +80,6 @@ export default function StudentQuizzesPage() {
       setShowGenDialog(false)
       setCurrentQuestionIndex(0)
       setSelectedAnswers({})
-      setQuizFinished(false)
       setShowReview(false)
     } catch (error: any) {
       toast({
@@ -124,6 +120,7 @@ export default function StudentQuizzesPage() {
 
     try {
       const attemptRef = doc(db, "users", user.uid, "quizAttempts", attemptId)
+      // We save the questions and selected answers so we can re-view them later
       await setDoc(attemptRef, {
         id: attemptId,
         studentId: user.uid,
@@ -131,11 +128,12 @@ export default function StudentQuizzesPage() {
         score: calculatedScore,
         submissionDate: new Date().toISOString(),
         feedback: `You got ${correctCount} out of ${activeQuiz.questions.length} correct.`,
-        title: activeQuiz.quizTitle
+        title: activeQuiz.quizTitle,
+        questions: activeQuiz.questions,
+        userAnswers: selectedAnswers
       })
       
       setFinalScore(calculatedScore)
-      setQuizFinished(true)
       setShowReview(true)
       
       toast({ 
@@ -147,6 +145,17 @@ export default function StudentQuizzesPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleViewPastAttempt = (attempt: any) => {
+    // Reconstruct the quiz state from the saved attempt
+    setActiveQuiz({
+      quizTitle: attempt.title || "Practice Quiz",
+      questions: attempt.questions || []
+    })
+    setSelectedAnswers(attempt.userAnswers || {})
+    setFinalScore(attempt.score || 0)
+    setShowReview(true)
   }
 
   const progress = activeQuiz ? ((currentQuestionIndex + 1) / activeQuiz.questions.length) * 100 : 0
@@ -167,7 +176,7 @@ export default function StudentQuizzesPage() {
                 <CardContent className="pt-6 text-center">
                   <Trophy className="h-12 w-12 mx-auto mb-2 opacity-80" />
                   <h2 className="text-3xl font-bold mb-1">{finalScore}%</h2>
-                  <p className="opacity-90">Great job completing your practice session!</p>
+                  <p className="opacity-90">Review your performance below.</p>
                   <Button variant="secondary" className="mt-4" onClick={() => {
                     setActiveQuiz(null)
                     setShowReview(false)
@@ -200,7 +209,7 @@ export default function StudentQuizzesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                           <div className={`p-2 rounded ${isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
                             <span className="font-bold block text-xs uppercase opacity-60">Your Answer</span>
-                            {selectedAnswers[idx]}
+                            {selectedAnswers[idx] || "No answer provided"}
                           </div>
                           {!isCorrect && (
                             <div className="p-2 rounded bg-green-50">
@@ -348,13 +357,17 @@ export default function StudentQuizzesPage() {
             ) : (
               <div className="space-y-3">
                 {attempts.map((attempt) => (
-                  <div key={attempt.id} className="group flex items-center justify-between p-4 rounded-xl bg-white shadow-sm border hover:border-primary/20 transition-all">
+                  <div 
+                    key={attempt.id} 
+                    className="group flex items-center justify-between p-4 rounded-xl bg-white shadow-sm border hover:border-primary/20 transition-all cursor-pointer"
+                    onClick={() => handleViewPastAttempt(attempt)}
+                  >
                     <div className="flex items-center gap-4">
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center ${attempt.score >= 70 ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`}>
                         {attempt.score >= 70 ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                       </div>
                       <div>
-                        <h4 className="font-semibold text-sm">Practice Quiz</h4>
+                        <h4 className="font-semibold text-sm">{attempt.title || "Practice Quiz"}</h4>
                         <p className="text-xs text-muted-foreground">{attempt.submissionDate ? format(new Date(attempt.submissionDate), "PPP p") : "Unknown Date"}</p>
                       </div>
                     </div>
