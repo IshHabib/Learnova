@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, Eye, BookText, Loader2, BookOpen, X } from "lucide-react"
+import { FileText, Plus, Search, Sparkles, Trash2, Eye, BookText, Loader2, BookOpen, X, Trophy, AlertCircle, User, CheckCircle2 } from "lucide-react"
 import { collection, query, where, doc, deleteDoc, addDoc, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,7 +24,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { generateStudyNotes } from "@/ai/flows/generate-study-notes"
+import { Badge } from "@/components/ui/badge"
 
 export default function TeacherContentPage() {
   const { user } = useUser()
@@ -58,8 +60,11 @@ export default function TeacherContentPage() {
     ]
   })
 
-  // State for Viewing Note
+  // State for Viewing Content
   const [viewingNote, setViewingNote] = useState<any | null>(null)
+  const [viewingQuiz, setViewingQuiz] = useState<any | null>(null)
+  const [quizAttempts, setQuizAttempts] = useState<any[]>([])
+  const [isLoadingAttempts, setIsLoadingAttempts] = useState(false)
 
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -82,33 +87,65 @@ export default function TeacherContentPage() {
         return
       }
 
-      const allNotes: any[] = []
+      const allContent: any[] = []
       for (const classId of classIds) {
         try {
           const notesSnap = await getDocs(collection(db, "classes", classId, "notes"))
           notesSnap.forEach(doc => {
-            allNotes.push({ id: doc.id, ...doc.data(), classId, type: 'note' })
+            allContent.push({ id: doc.id, ...doc.data(), classId, type: 'note' })
           })
           const quizzesSnap = await getDocs(collection(db, "classes", classId, "quizzes"))
           quizzesSnap.forEach(doc => {
-            allNotes.push({ id: doc.id, ...doc.data(), classId, type: 'quiz' })
+            allContent.push({ id: doc.id, ...doc.data(), classId, type: 'quiz' })
           })
         } catch (err) {
           console.warn(`Could not fetch content for class ${classId}`)
         }
       }
       
-      setContent(allNotes)
+      setContent(allContent)
       setIsLoading(false)
     })
 
     return () => unsubscribe()
   }, [db, user?.uid])
 
-  const handleDelete = async (classId: string, noteId: string, type: 'note' | 'quiz') => {
+  // Fetch performance data when a quiz is opened
+  useEffect(() => {
+    if (!viewingQuiz || !db || !user?.uid) return
+
+    const fetchPerformance = async () => {
+      setIsLoadingAttempts(true)
+      const attempts: any[] = []
+      const selectedClass = classes?.find(c => c.id === viewingQuiz.classId)
+      
+      if (selectedClass?.studentIds?.length) {
+        for (const studentId of selectedClass.studentIds) {
+          try {
+            const q = query(
+              collection(db, "users", studentId, "quizAttempts"),
+              where("quizId", "==", viewingQuiz.id)
+            )
+            const snap = await getDocs(q)
+            snap.forEach(doc => {
+              attempts.push({ id: doc.id, ...doc.data(), studentName: "Student" }) // In a real app, we'd fetch names too
+            })
+          } catch (e) {
+            console.error("Error fetching student attempt:", e)
+          }
+        }
+      }
+      setQuizAttempts(attempts)
+      setIsLoadingAttempts(false)
+    }
+
+    fetchPerformance()
+  }, [viewingQuiz, db, user?.uid, classes])
+
+  const handleDelete = async (classId: string, contentId: string, type: 'note' | 'quiz') => {
     try {
       const collectionName = type === 'note' ? 'notes' : 'quizzes'
-      await deleteDoc(doc(db, "classes", classId, collectionName, noteId))
+      await deleteDoc(doc(db, "classes", classId, collectionName, contentId))
       toast({ title: "Content deleted successfully" })
     } catch (error: any) {
       toast({ 
@@ -139,7 +176,6 @@ export default function TeacherContentPage() {
   const handleCreateQuiz = async () => {
     if (!user || !quizData.title || !quizData.classId) return
     
-    // Validate that each question has text and at least some options
     const isValid = quizData.questions.every(q => q.questionText.trim() !== "" && q.correctAnswer.trim() !== "")
     if (!isValid) {
       toast({ title: "Incomplete Quiz", description: "Please ensure all questions have text and a correct answer.", variant: "destructive" })
@@ -152,13 +188,16 @@ export default function TeacherContentPage() {
       const quizRef = collection(db, "classes", quizData.classId, "quizzes")
       
       await addDoc(quizRef, {
-        ...quizData,
+        title: quizData.title,
+        description: quizData.description,
+        questions: quizData.questions,
         teacherId: user.uid,
         classTeacherId: user.uid,
         classStudentIds: selectedClass?.studentIds || [],
         creationDate: new Date().toISOString(),
         isAIGenerated: false,
-        maxScore: 100
+        maxScore: 100,
+        classId: quizData.classId
       })
 
       toast({ title: "Quiz Assigned!", description: "Students in the class can now take this quiz." })
@@ -254,7 +293,7 @@ export default function TeacherContentPage() {
         window.open(item.contentUrl)
       }
     } else {
-      toast({ title: "Quiz Review", description: "Full quiz editor coming in next update!" })
+      setViewingQuiz(item)
     }
   }
 
@@ -329,7 +368,7 @@ export default function TeacherContentPage() {
                   <CardContent className="flex gap-2">
                     <Button variant="secondary" size="sm" className="flex-1 h-8 text-[10px]" onClick={() => handleView(item)}>
                       <Eye className="mr-1.5 h-3 w-3" />
-                      View
+                      {item.type === 'quiz' ? 'Review Results' : 'View'}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 text-[10px] text-destructive hover:bg-destructive/5" onClick={() => handleDelete(item.classId, item.id, item.type)}>
                       <Trash2 className="h-3 w-3" />
@@ -368,6 +407,123 @@ export default function TeacherContentPage() {
                 {isAiGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Generate & Post
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* QUIZ REVIEW / PERFORMANCE DIALOG */}
+        <Dialog open={!!viewingQuiz} onOpenChange={(open) => !open && setViewingQuiz(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+            <header className="p-6 border-b bg-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-xl font-headline text-primary">{viewingQuiz?.title}</DialogTitle>
+                  <DialogDescription className="mt-1">Classroom Assessment Review</DialogDescription>
+                </div>
+                {viewingQuiz?.isAIGenerated && <Badge variant="secondary"><Sparkles className="h-3 w-3 mr-1" /> AI Generated</Badge>}
+              </div>
+            </header>
+            
+            <Tabs defaultValue="performance" className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-6 border-b bg-white">
+                <TabsList className="bg-transparent border-b-0 h-12">
+                  <TabsTrigger value="performance" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary border-b-2 border-transparent data-[state=active]:border-primary rounded-none h-12">
+                    <Trophy className="h-4 w-4 mr-2" />
+                    Student Performance
+                  </TabsTrigger>
+                  <TabsTrigger value="questions" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary border-b-2 border-transparent data-[state=active]:border-primary rounded-none h-12">
+                    <BookText className="h-4 w-4 mr-2" />
+                    Quiz Structure
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <div className="flex-1 overflow-hidden">
+                <TabsContent value="performance" className="h-full m-0">
+                  <ScrollArea className="h-full p-6 bg-slate-50/30">
+                    <div className="max-w-3xl mx-auto space-y-6 pb-10">
+                      {isLoadingAttempts ? (
+                        <div className="space-y-3">
+                          {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+                        </div>
+                      ) : quizAttempts.length === 0 ? (
+                        <div className="text-center py-20 border-2 border-dashed rounded-2xl">
+                          <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-30" />
+                          <p className="text-sm text-muted-foreground">No students have completed this quiz yet.</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4">
+                          {quizAttempts.map((attempt) => (
+                            <Card key={attempt.id} className="border-none shadow-sm flex items-center justify-between p-4">
+                              <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <User className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-sm">Anonymous Learner</h4>
+                                  <p className="text-[10px] text-muted-foreground">Submitted {new Date(attempt.submissionDate).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <p className={`text-lg font-bold ${attempt.score >= 70 ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {attempt.score}%
+                                  </p>
+                                  {attempt.score < 70 && (
+                                    <Badge variant="destructive" className="text-[8px] h-4 uppercase">Needs Improvement</Badge>
+                                  )}
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="questions" className="h-full m-0">
+                  <ScrollArea className="h-full p-6 bg-slate-50/30">
+                    <div className="max-w-3xl mx-auto space-y-6 pb-10">
+                      {viewingQuiz?.questions?.map((q: any, idx: number) => (
+                        <Card key={idx} className="border-none shadow-sm overflow-hidden">
+                          <div className="p-4 bg-primary/5 border-b flex items-center justify-between">
+                            <span className="text-xs font-bold text-primary uppercase">Question {idx + 1}</span>
+                            <Badge variant="outline" className="bg-white text-[10px]"><CheckCircle2 className="h-3 w-3 mr-1 text-green-500" /> Multiple Choice</Badge>
+                          </div>
+                          <CardContent className="p-6 space-y-4">
+                            <h4 className="font-semibold text-lg">{q.questionText}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {q.options?.map((opt: string, oIdx: number) => (
+                                <div key={oIdx} className={`p-3 rounded-lg border text-sm ${opt === q.correctAnswer ? 'bg-green-50 border-green-200 text-green-800 font-medium' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                                  {opt}
+                                  {opt === q.correctAnswer && <span className="ml-2 text-[10px] font-bold uppercase">(Correct)</span>}
+                                </div>
+                              ))}
+                            </div>
+                            {q.explanation && (
+                              <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                <div className="flex items-center gap-2 mb-1 text-amber-700">
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                  <span className="text-[10px] font-bold uppercase">AI Explanation</span>
+                                </div>
+                                <p className="text-xs text-amber-900 leading-relaxed italic">{q.explanation}</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+              </div>
+            </Tabs>
+
+            <DialogFooter className="p-4 border-t bg-white">
+              <Button onClick={() => setViewingQuiz(null)}>Close Library Review</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -509,7 +665,7 @@ export default function TeacherContentPage() {
           </DialogContent>
         </Dialog>
 
-        {/* VIEWER DIALOG */}
+        {/* VIEWER DIALOG FOR NOTES */}
         <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
             <header className="p-6 border-b bg-white">
