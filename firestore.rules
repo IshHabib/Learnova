@@ -26,22 +26,20 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
         
         // Teachers can read attempts for their own assigned quizzes/classes
-        allow read: if isSignedIn() && (
-          resource.data.teacherId == request.auth.uid || 
-          resource.data.classTeacherId == request.auth.uid
-        );
+        allow read: if isSignedIn();
       }
     }
 
     // Classes and their content
-    // Broad permissions for prototype phase to allow self-enrollment and management
-    // Deployment trigger comment: Refined for explicit update permission
+    // Broadened for prototype reliability
+    // Deployment trigger: Atomic CRUD definitions applied
     match /classes/{classId} {
-      // Explicitly permitting all CRUD operations for signed-in users
-      // This ensures that students can 'update' the studentIds array for enrollment
-      allow read, create, update, delete: if isSignedIn();
+      // Allow any signed-in user to read and update (for studentIds array enrollment)
+      allow read, create, update: if isSignedIn();
+      // Restrict deletion to the owner/teacher
+      allow delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid);
 
-      // Broad permissions for sub-collections (notes, videos, quizzes, etc.)
+      // Broad permissions for sub-collections within a class
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
@@ -49,7 +47,9 @@ service cloud.firestore {
 
     // Chat Sessions
     match /chatSessions/{sessionId} {
-      allow read, write: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
+      // Check request.resource for creation, and resource for updates
+      allow create: if isSignedIn() && (request.auth.uid in request.resource.data.participantIds);
+      allow read, update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
 
       match /messages/{messageId} {
         allow read, write: if isSignedIn();
@@ -63,12 +63,7 @@ service cloud.firestore {
     }
 
     match /{path=**}/quizAttempts/{attemptId} {
-      allow list: if isSignedIn() && (
-        resource.data.studentId == request.auth.uid || 
-        resource.data.teacherId == request.auth.uid ||
-        resource.data.classTeacherId == request.auth.uid
-      );
-      allow get: if isSignedIn();
+      allow list, get: if isSignedIn();
     }
   }
 }

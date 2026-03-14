@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -21,7 +22,8 @@ import {
   Wifi,
   Activity,
   Maximize2,
-  Zap
+  Zap,
+  RefreshCw
 } from "lucide-react"
 import { doc } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase"
@@ -49,16 +51,25 @@ export default function StudentLiveLecturePage() {
     { id: 1, user: "System", text: "Connected to Zenstream RTMP Gateway. Low-latency broadcast optimized.", isSystem: true },
   ])
   const [participantCount, setParticipantCount] = useState(0)
+  const [connectionError, setConnectionError] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   const classRef = useMemoFirebase(() => doc(db, "classes", classId), [db, classId])
-  const { data: classData, isLoading } = useDoc(classRef)
+  const { data: classData, isLoading, error } = useDoc(classRef)
 
-  // Initialize Student Camera (PIP) and dynamic participants
+  // Connection timeout check
   useEffect(() => {
-    // Set participant count here to avoid hydration mismatch
+    const timer = setTimeout(() => {
+      if (isLoading && !classData) {
+        setConnectionError(true)
+      }
+    }, 10000)
+    return () => clearTimeout(timer)
+  }, [isLoading, classData])
+
+  useEffect(() => {
     setParticipantCount(Math.floor(Math.random() * 20) + 10)
 
     const getCameraPermission = async () => {
@@ -118,18 +129,37 @@ export default function StudentLiveLecturePage() {
     }
   }
 
-  if (isLoading) return <div className="p-8 flex items-center gap-2 bg-slate-950 text-white h-screen w-full"><Activity className="animate-spin" /> Negotiating connection...</div>
+  if (connectionError || error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-950 text-white p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-bold mb-2">Connection Issues</h2>
+        <p className="text-slate-400 mb-6 max-w-md">We're having trouble connecting to the classroom server. This could be due to network restrictions or server maintenance.</p>
+        <div className="flex gap-4">
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry Connection
+          </Button>
+          <Button variant="ghost" onClick={() => router.back()}>Go Dashboard</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading) return <div className="p-8 flex items-center justify-center gap-3 bg-slate-950 text-white h-screen w-full"><Activity className="animate-spin text-primary" /> <span className="font-bold tracking-widest uppercase text-xs">Negotiating Zenstream Handshake...</span></div>
 
   if (!classData?.isLive) {
     return (
       <SidebarProvider>
         <AppSidebar role="student" />
         <SidebarInset>
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-bold">Lecture Terminated</h2>
-            <p className="text-muted-foreground mb-6">The broadcast for this class has ended.</p>
-            <Button onClick={() => router.back()}>Go Back</Button>
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-slate-50">
+            <div className="h-20 w-20 rounded-full bg-slate-200 flex items-center justify-center mb-6">
+              <AlertCircle className="h-10 w-10 text-slate-400" />
+            </div>
+            <h2 className="text-2xl font-bold font-headline mb-2">Lecture Terminated</h2>
+            <p className="text-muted-foreground mb-8 max-w-sm">The broadcast for this class has ended or has not started yet. Please check back later.</p>
+            <Button size="lg" className="rounded-full px-8" onClick={() => router.back()}>Return to Dashboard</Button>
           </div>
         </SidebarInset>
       </SidebarProvider>
@@ -165,7 +195,6 @@ export default function StudentLiveLecturePage() {
         </header>
 
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-          {/* Main Broadcast Feed */}
           <div className="flex-1 flex flex-col relative overflow-hidden">
             <div className="flex-1 flex items-center justify-center p-4 lg:p-8 bg-slate-950">
                <div className="aspect-video w-full max-w-5xl bg-slate-900 rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] relative border-4 border-white/5">
@@ -178,11 +207,9 @@ export default function StudentLiveLecturePage() {
                         <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Receiving Low Latency RTMP Stream</p>
                       </div>
                     </div>
-                    {/* Simulated blurred background for instructor */}
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20 opacity-40" />
                   </div>
                   
-                  {/* Local Student PIP (Picture-in-Picture) */}
                   <div className="absolute bottom-6 right-6 w-40 md:w-56 aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 z-20 group">
                     <video 
                       ref={videoRef} 
@@ -201,7 +228,6 @@ export default function StudentLiveLecturePage() {
                     </div>
                   </div>
 
-                  {/* Feed Overlays */}
                   <div className="absolute top-6 left-6 flex flex-col gap-3">
                     <div className="flex items-center gap-2 bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase tracking-[0.2em] shadow-lg">
                       <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
@@ -221,7 +247,6 @@ export default function StudentLiveLecturePage() {
                </div>
             </div>
             
-            {/* Student Control Bar */}
             <div className="h-24 bg-black/60 backdrop-blur-2xl border-t border-white/5 flex items-center justify-between px-8 z-20">
                 <div className="flex items-center gap-6">
                   <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
@@ -261,7 +286,6 @@ export default function StudentLiveLecturePage() {
             </div>
           </div>
 
-          {/* Side Chat Panel */}
           <div className="w-full lg:w-[400px] border-l border-white/10 bg-black/40 backdrop-blur-3xl flex flex-col h-[450px] lg:h-full z-10 shadow-2xl">
             <div className="p-6 border-b border-white/10 flex items-center justify-between">
               <h3 className="text-xs font-bold flex items-center gap-2 text-white/80 uppercase tracking-widest">
