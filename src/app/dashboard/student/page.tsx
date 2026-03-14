@@ -33,10 +33,9 @@ export default function StudentDashboard() {
 
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    // Important: Query must have where("studentId", "==", user.uid) to match security rules
+    // Changed from collectionGroup to direct collection to avoid index/permission complexity
     return query(
       collection(db, "users", user.uid, "quizAttempts"),
-      where("studentId", "==", user.uid),
       orderBy("submissionDate", "desc")
     )
   }, [db, user?.uid])
