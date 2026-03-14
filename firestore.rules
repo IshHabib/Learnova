@@ -29,44 +29,35 @@ service cloud.firestore {
     }
 
     // Global Collection Group rules for cross-class content
-    // These use denormalized fields for Authorization Independence (no get() calls)
+    // Splitting OR conditions into separate allow statements helps the query optimizer
     
     match /{path=**}/quizAttempts/{attemptId} {
-      allow list: if isSignedIn() && (
-        resource.data.studentId == request.auth.uid || 
-        resource.data.teacherId == request.auth.uid
-      );
+      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
     }
 
     match /{path=**}/notes/{noteId} {
-      allow list: if isSignedIn() && (
-        request.auth.uid in resource.data.classStudentIds || 
-        resource.data.classTeacherId == request.auth.uid
-      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
       allow get: if isSignedIn();
     }
 
     match /{path=**}/videos/{videoId} {
-      allow list: if isSignedIn() && (
-        request.auth.uid in resource.data.classStudentIds || 
-        resource.data.classTeacherId == request.auth.uid
-      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
       allow get: if isSignedIn();
     }
 
     match /{path=**}/quizzes/{quizId} {
-      allow list: if isSignedIn() && (
-        request.auth.uid in resource.data.classStudentIds || 
-        resource.data.classTeacherId == request.auth.uid
-      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
       allow get: if isSignedIn();
     }
 
     match /{path=**}/studyGroups/{groupId} {
-      allow list: if isSignedIn() && (
-        request.auth.uid in resource.data.classStudentIds || 
-        resource.data.classTeacherId == request.auth.uid
-      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
       allow get: if isSignedIn();
     }
 

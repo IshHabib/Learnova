@@ -42,13 +42,14 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
   React.useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
+        // Initial setup from auth user
         setUserName(user.displayName || "User")
         
-        // Listen to Firestore for updates to role or name
+        // Listen to Firestore for updates to role or name (using 'name' field as per backend.json)
         const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
           if (doc.exists()) {
             const data = doc.data()
-            setUserName(data.displayName || user.displayName || "User")
+            setUserName(data.name || data.displayName || user.displayName || "User")
             setUserRole(data.role || role)
           }
         })
@@ -120,7 +121,11 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
                 <span className="truncate font-semibold text-foreground">{userName}</span>
                 <span className="truncate text-xs text-muted-foreground">{userRole === "teacher" ? "Professor" : "Student"}</span>
               </div>
-              <LogOut className="ml-auto size-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={handleSignOut} />
+              <div className="ml-auto flex items-center">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
+                  <LogOut className="size-4 text-muted-foreground hover:text-destructive transition-colors" />
+                </Button>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
