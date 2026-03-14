@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { Brain, TrendingUp, Target, Loader2, Sparkles } from "lucide-react"
+import { Brain, TrendingUp, Target, Loader2, Sparkles, AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { suggestTeachingStrategies } from "@/ai/flows/suggest-teaching-strategies"
 import {
@@ -231,7 +230,7 @@ export default function TeacherAnalyticsPage() {
         </main>
 
         <Dialog open={showAiModal} onOpenChange={setShowAiModal}>
-          <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
             <DialogHeader className="p-6 border-b bg-white shrink-0">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <Brain className="h-6 w-6" />
@@ -240,23 +239,29 @@ export default function TeacherAnalyticsPage() {
               <DialogDescription>Data-driven insights for improved learning outcomes</DialogDescription>
             </DialogHeader>
             <div className="flex-1 min-h-0 overflow-y-auto p-8 bg-slate-50/50">
-              <div className="max-w-2xl mx-auto">
+              <div className="max-w-3xl mx-auto pb-12">
                 {isGeneratingStrategies ? (
                   <div className="flex flex-col items-center justify-center py-24 space-y-4">
                     <Loader2 className="h-12 w-12 text-primary animate-spin" />
                     <p className="text-sm text-muted-foreground font-medium">Processing analytics data...</p>
                   </div>
                 ) : (
-                  <div className="prose prose-slate max-w-none">
-                    <div className="whitespace-pre-wrap font-sans leading-relaxed text-slate-800 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="space-y-6">
+                    <div className="whitespace-pre-wrap font-sans leading-relaxed text-slate-800 bg-white p-8 md:p-12 rounded-2xl shadow-sm border border-slate-200">
                       {aiStrategies}
+                    </div>
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-amber-900 leading-relaxed italic">
+                        <strong>Expert Insight:</strong> Use these AI-generated strategies to augment your classroom experience. Every point in the report is calculated based on recent assessment history.
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
             <DialogFooter className="p-4 border-t bg-white shrink-0">
-              <Button onClick={() => setShowAiModal(false)}>Dismiss</Button>
+              <Button onClick={() => setShowAiModal(false)}>Dismiss Report</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

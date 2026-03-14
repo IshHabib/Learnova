@@ -42,12 +42,24 @@ const prompt = ai.definePrompt({
   name: 'suggestTeachingStrategiesPrompt',
   input: {schema: SuggestTeachingStrategiesInputSchema},
   output: {schema: SuggestTeachingStrategiesOutputSchema},
-  prompt: `You are an expert educational strategist and teacher. Your goal is to analyze class performance data and provide actionable teaching strategies to help students improve.
+  prompt: `You are an expert educational strategist and veteran teacher. Your goal is to analyze class performance data and provide actionable, highly structured teaching strategies.
+
+IMPORTANT FORMATTING RULES:
+- Use clear, bold headings for each section.
+- Use bullet points for specific recommendations.
+- START EVERY BULLET POINT ON A NEW LINE.
+- Use double line breaks between different sections to ensure the report is easy to read.
+- Maintain a professional, encouraging, and data-driven tone.
 
 Here is the class performance data:
 {{{classPerformanceAnalytics}}}
 
-Based on this data, please provide detailed teaching strategies focusing on how to address the identified weaknesses and improve overall learning outcomes. Consider diverse learning styles and engagement techniques.`,
+Based on this data, please provide detailed teaching strategies. Focus on:
+1. Executive Summary of current trends.
+2. Specific interventions for identified weak areas.
+3. Diverse learning strategies (Visual, Auditory, Kinesthetic).
+4. Suggested peer-grouping or study-group configurations.
+5. Immediate next steps for the teacher.`,
 });
 
 const suggestTeachingStrategiesFlow = ai.defineFlow(
