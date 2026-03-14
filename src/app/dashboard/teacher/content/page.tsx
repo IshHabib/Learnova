@@ -5,23 +5,44 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink } from "lucide-react"
-import { collectionGroup, query, where, doc, deleteDoc } from "firebase/firestore"
+import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2 } from "lucide-react"
+import { collectionGroup, query, where, doc, deleteDoc, collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function TeacherContentPage() {
   const { user } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
+  const [isUploading, setIsUploading] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [newNote, setNewNote] = useState({ title: "", classId: "", contentUrl: "" })
 
   const contentQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(collectionGroup(db, "notes"), where("classTeacherId", "==", user.uid))
   }, [db, user?.uid])
 
+  const classesQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return query(collection(db, "classes"), where("teacherId", "==", user.uid))
+  }, [db, user?.uid])
+
   const { data: content, isLoading } = useCollection(contentQuery)
+  const { data: classes } = useCollection(classesQuery)
 
   const handleDelete = async (classId: string, noteId: string) => {
     try {
@@ -36,6 +57,36 @@ export default function TeacherContentPage() {
     }
   }
 
+  const handleUpload = async () => {
+    if (!user || !newNote.title || !newNote.classId) return
+    setIsUploading(true)
+    try {
+      const selectedClass = classes?.find(c => c.id === newNote.classId)
+      if (!selectedClass) throw new Error("Class not found")
+
+      const notesRef = collection(db, "classes", newNote.classId, "notes")
+      await addDoc(notesRef, {
+        title: newNote.title,
+        contentUrl: newNote.contentUrl || "https://example.com/sample.pdf",
+        classId: newNote.classId,
+        teacherId: user.uid,
+        classTeacherId: user.uid,
+        classStudentIds: selectedClass.studentIds || [],
+        uploadDate: new Date().toISOString(),
+        isAIGenerated: false,
+        topics: []
+      })
+
+      toast({ title: "Success", description: "Material uploaded to class." })
+      setNewNote({ title: "", classId: "", contentUrl: "" })
+      setShowUpload(false)
+    } catch (error: any) {
+      toast({ title: "Error uploading", description: error.message, variant: "destructive" })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar role="teacher" />
@@ -44,10 +95,57 @@ export default function TeacherContentPage() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold font-headline">Content Library</h1>
-            <Button size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Upload Material
-            </Button>
+            <Dialog open={showUpload} onOpenChange={setShowUpload}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Upload Material
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Upload Study Material</DialogTitle>
+                  <DialogDescription>Share notes or documents with a specific class.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input 
+                      placeholder="Chapter 1: Intro to Physics" 
+                      value={newNote.title}
+                      onChange={e => setNewNote({...newNote, title: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Select Class</Label>
+                    <Select onValueChange={val => setNewNote({...newNote, classId: val})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a class..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes?.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Resource URL (PDF/Markdown)</Label>
+                    <Input 
+                      placeholder="https://..." 
+                      value={newNote.contentUrl}
+                      onChange={e => setNewNote({...newNote, contentUrl: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleUpload} disabled={isUploading || !newNote.title || !newNote.classId}>
+                    {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Upload
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
         <main className="p-4 md:p-6 lg:p-8">
@@ -79,7 +177,7 @@ export default function TeacherContentPage() {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold">{item.title}</h4>
-                      <p className="text-[10px] text-muted-foreground">Type: PDF | Shared with class</p>
+                      <p className="text-[10px] text-muted-foreground">Shared with class</p>
                     </div>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

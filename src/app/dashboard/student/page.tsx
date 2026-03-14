@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { BookOpen, Brain, FileText, ArrowRight, TrendingUp } from "lucide-react"
-import { doc, collection, query, where, orderBy } from "firebase/firestore"
+import { doc, collection, query, where, orderBy, collectionGroup } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 
@@ -33,15 +33,12 @@ export default function StudentDashboard() {
   }, [db, user?.uid])
   const { data: userClasses, isLoading: classesLoading } = useCollection(classesQuery)
 
-  // 3. Fetch User's Quiz Attempts
+  // 3. Fetch User's Quiz Attempts via Collection Group (matches security rules better)
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    // Querying the subcollection directly. 
-    // Filter by studentId is kept for safety and clarity.
     return query(
-      collection(db, "users", user.uid, "quizAttempts"),
-      where("studentId", "==", user.uid),
-      orderBy("submissionDate", "asc")
+      collectionGroup(db, "quizAttempts"),
+      where("studentId", "==", user.uid)
     )
   }, [db, user?.uid])
   const { data: quizAttempts, isLoading: attemptsLoading } = useCollection(quizAttemptsQuery)
@@ -63,12 +60,15 @@ export default function StudentDashboard() {
     }
   }, [quizAttempts, userClasses])
 
-  // Prepare Chart Data
+  // Prepare Chart Data (Sorting manually to avoid needing composite index immediately)
   const chartData = useMemo(() => {
-    return (quizAttempts || []).map((attempt, index) => ({
-      name: attempt.submissionDate ? format(new Date(attempt.submissionDate), "MMM d") : `Quiz ${index + 1}`,
-      score: attempt.score || 0,
-    }))
+    if (!quizAttempts) return []
+    return [...quizAttempts]
+      .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
+      .map((attempt, index) => ({
+        name: attempt.submissionDate ? format(new Date(attempt.submissionDate), "MMM d") : `Quiz ${index + 1}`,
+        score: attempt.score || 0,
+      }))
   }, [quizAttempts])
 
   const isLoading = userLoading || classesLoading || attemptsLoading
@@ -155,18 +155,16 @@ export default function StudentDashboard() {
                     <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.href = "/dashboard/student/quizzes"}>Go to Quizzes</Button>
                   </div>
                 ) : (
-                  <>
-                    <div className="p-3 rounded-lg bg-secondary/50 border border-secondary flex items-start gap-3">
-                      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                        <Brain className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-foreground">Review: Recent Topics</h4>
-                        <p className="text-xs text-muted-foreground">Based on your last performance, you should focus on your weakest area.</p>
-                        <Button variant="link" size="sm" className="h-auto p-0 mt-1 text-primary">Start Review</Button>
-                      </div>
+                  <div className="p-3 rounded-lg bg-secondary/50 border border-secondary flex items-start gap-3">
+                    <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                      <Brain className="h-4 w-4 text-primary" />
                     </div>
-                  </>
+                    <div>
+                      <h4 className="text-sm font-semibold text-foreground">Review: Recent Topics</h4>
+                      <p className="text-xs text-muted-foreground">Based on your last performance, you should focus on your weakest area.</p>
+                      <Button variant="link" size="sm" className="h-auto p-0 mt-1 text-primary">Start Review</Button>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
