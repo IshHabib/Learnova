@@ -13,8 +13,6 @@ export default function StudentQuizzesPage() {
   const { user } = useUser()
   const db = useFirestore()
 
-  // Fetch all quiz attempts from the user's specific collection
-  // Added where filter to satisfy security rules for collection group matches
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(

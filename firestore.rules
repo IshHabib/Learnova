@@ -19,7 +19,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
       
-      // Explicit path for subcollections to avoid "provably safe" list errors
+      // Student's own quiz attempts
       match /quizAttempts/{attemptId} {
         allow read, write: if isOwner(userId);
       }
@@ -34,37 +34,42 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds'])
       );
       allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+
+      // Sub-collections under a specific class
+      match /notes/{id} { allow read, write: if isSignedIn(); }
+      match /videos/{id} { allow read, write: if isSignedIn(); }
+      match /quizzes/{id} { allow read, write: if isSignedIn(); }
+      match /studyGroups/{id} { allow read, write: if isSignedIn(); }
     }
 
-    // Sub-collections: Notes, Videos, Quizzes, StudyGroups
+    // Collection Group rules for cross-class queries
+    // NOTE: These rules require queries to be "provably safe" with matching .where() filters
+    
     match /{path=**}/notes/{noteId} {
-      allow get: if isSignedIn();
       allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
-      allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
+      allow get: if isSignedIn();
     }
 
     match /{path=**}/videos/{videoId} {
-      allow get: if isSignedIn();
       allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
-      allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
+      allow get: if isSignedIn();
     }
 
     match /{path=**}/quizzes/{quizId} {
-      allow get: if isSignedIn();
       allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
-      allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
+      allow get: if isSignedIn();
     }
 
     match /{path=**}/studyGroups/{groupId} {
-      allow get: if isSignedIn();
       allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
-      allow write: if isSignedIn() && (request.resource.data.classTeacherId == request.auth.uid || resource.data.classTeacherId == request.auth.uid);
+      allow get: if isSignedIn();
     }
 
-    // Quiz Attempts (General/Group Access)
     match /{path=**}/quizAttempts/{attemptId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
+      // Split list rules to avoid "OR" logic complexity in "provably safe" checks
+      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
     }
 

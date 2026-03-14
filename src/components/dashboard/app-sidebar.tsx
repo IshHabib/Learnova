@@ -10,9 +10,8 @@ import {
   FileText,
   Brain,
   Users,
-  Settings,
-  GraduationCap,
   LogOut,
+  GraduationCap,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged, signOut } from "firebase/auth"
@@ -43,10 +42,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
   React.useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Initial setup from auth user
         setUserName(user.displayName || "User")
-        
-        // Listen to Firestore for updates to role or name (using 'name' field as per backend.json)
         const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
           if (doc.exists()) {
             const data = doc.data()
@@ -113,16 +109,16 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-2 p-2">
-              <Avatar className="h-8 w-8 rounded-lg">
+            <div className="flex items-center gap-2 p-2 w-full overflow-hidden">
+              <Avatar className="h-8 w-8 rounded-lg shrink-0">
                 <AvatarImage src={`https://picsum.photos/seed/${userName}/32/32`} alt={userName} />
                 <AvatarFallback className="rounded-lg">{userName.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
                 <span className="truncate font-semibold text-foreground">{userName}</span>
                 <span className="truncate text-xs text-muted-foreground">{userRole === "teacher" ? "Professor" : "Student"}</span>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={handleSignOut}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 ml-auto" onClick={handleSignOut}>
                 <LogOut className="size-4 text-muted-foreground hover:text-destructive transition-colors" />
               </Button>
             </div>

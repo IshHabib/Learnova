@@ -16,14 +16,12 @@ export default function StudentDashboard() {
   const { user } = useUser()
   const db = useFirestore()
   
-  // 1. Fetch User Profile
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "users", user.uid)
   }, [db, user?.uid])
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef)
 
-  // 2. Fetch User's Classes
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
@@ -33,10 +31,9 @@ export default function StudentDashboard() {
   }, [db, user?.uid])
   const { data: userClasses, isLoading: classesLoading } = useCollection(classesQuery)
 
-  // 3. Fetch User's Quiz Attempts
-  // Added where("studentId", "==", user.uid) to satisfy "provably safe" security rules
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
+    // Important: Query must have where("studentId", "==", user.uid) to match security rules
     return query(
       collection(db, "users", user.uid, "quizAttempts"),
       where("studentId", "==", user.uid),
@@ -45,7 +42,6 @@ export default function StudentDashboard() {
   }, [db, user?.uid])
   const { data: quizAttempts, isLoading: attemptsLoading } = useCollection(quizAttemptsQuery)
 
-  // Calculate Real-time Stats
   const stats = useMemo(() => {
     const attempts = quizAttempts || []
     const classes = userClasses || []
@@ -62,7 +58,6 @@ export default function StudentDashboard() {
     }
   }, [quizAttempts, userClasses])
 
-  // Prepare Chart Data
   const chartData = useMemo(() => {
     if (!quizAttempts || quizAttempts.length === 0) return []
     return [...quizAttempts]
