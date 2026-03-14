@@ -1,28 +1,55 @@
+
 "use client"
 
+import { useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Video, PlayCircle, Clock, Sparkles } from "lucide-react"
-import { collectionGroup, query, where } from "firebase/firestore"
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
+import { Video, PlayCircle, Clock, Sparkles, Loader2 } from "lucide-react"
+import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore"
+import { useFirestore, useUser } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function StudentVideosPage() {
   const { user } = useUser()
   const db = useFirestore()
+  const [videos, setVideos] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch all videos where student is in the classStudentIds list
-  const videosQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null
-    return query(
-      collectionGroup(db, "videos"), 
-      where("classStudentIds", "array-contains", user.uid)
+  useEffect(() => {
+    if (!db || !user?.uid) return
+
+    // Fetch classes the student belongs to
+    const classesQuery = query(
+      collection(db, "classes"),
+      where("studentIds", "array-contains", user.uid)
     )
-  }, [db, user?.uid])
 
-  const { data: videos, isLoading } = useCollection(videosQuery)
+    const unsubscribe = onSnapshot(classesQuery, async (snapshot) => {
+      const classIds = snapshot.docs.map(doc => doc.id)
+      
+      if (classIds.length === 0) {
+        setVideos([])
+        setIsLoading(false)
+        return
+      }
+
+      // Fetch videos for each class individually to avoid index requirements
+      const allVideos: any[] = []
+      for (const classId of classIds) {
+        const videosSnap = await getDocs(collection(db, "classes", classId, "videos"))
+        videosSnap.forEach(doc => {
+          allVideos.push({ id: doc.id, ...doc.data() })
+        })
+      }
+      
+      setVideos(allVideos)
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [db, user?.uid])
 
   return (
     <SidebarProvider>
@@ -37,7 +64,7 @@ export default function StudentVideosPage() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-64 rounded-xl" />)}
             </div>
-          ) : !videos || videos.length === 0 ? (
+          ) : videos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed rounded-2xl bg-muted/5">
               <div className="h-16 w-16 bg-muted/20 rounded-full flex items-center justify-center mb-4">
                 <Video className="h-8 w-8 text-muted-foreground" />
