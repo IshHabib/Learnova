@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2, Eye, BookOpen, BookText } from "lucide-react"
+import { FileText, Plus, Search, Sparkles, Trash2, Eye, BookText, Loader2, BookOpen, X } from "lucide-react"
 import { collection, query, where, doc, deleteDoc, addDoc, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -18,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -120,18 +119,48 @@ export default function TeacherContentPage() {
     }
   }
 
+  const handleAddQuestion = () => {
+    setQuizData({
+      ...quizData,
+      questions: [
+        ...quizData.questions,
+        { questionText: "", options: ["", "", "", ""], correctAnswer: "", explanation: "" }
+      ]
+    })
+  }
+
+  const handleRemoveQuestion = (index: number) => {
+    if (quizData.questions.length <= 1) return
+    const newQuestions = [...quizData.questions]
+    newQuestions.splice(index, 1)
+    setQuizData({ ...quizData, questions: newQuestions })
+  }
+
   const handleCreateQuiz = async () => {
     if (!user || !quizData.title || !quizData.classId) return
+    
+    // Validate that each question has text and at least some options
+    const isValid = quizData.questions.every(q => q.questionText.trim() !== "" && q.correctAnswer.trim() !== "")
+    if (!isValid) {
+      toast({ title: "Incomplete Quiz", description: "Please ensure all questions have text and a correct answer.", variant: "destructive" })
+      return
+    }
+
     setIsCreatingQuiz(true)
     try {
+      const selectedClass = classes?.find(c => c.id === quizData.classId)
       const quizRef = collection(db, "classes", quizData.classId, "quizzes")
+      
       await addDoc(quizRef, {
         ...quizData,
         teacherId: user.uid,
+        classTeacherId: user.uid,
+        classStudentIds: selectedClass?.studentIds || [],
         creationDate: new Date().toISOString(),
         isAIGenerated: false,
         maxScore: 100
       })
+
       toast({ title: "Quiz Assigned!", description: "Students in the class can now take this quiz." })
       setShowQuizCreate(false)
       setQuizData({
@@ -225,7 +254,7 @@ export default function TeacherContentPage() {
         window.open(item.contentUrl)
       }
     } else {
-      toast({ title: "Quiz Review", description: "Quiz content editing coming soon." })
+      toast({ title: "Quiz Review", description: "Full quiz editor coming in next update!" })
     }
   }
 
@@ -345,72 +374,104 @@ export default function TeacherContentPage() {
 
         {/* QUIZ CREATE DIALOG */}
         <Dialog open={showQuizCreate} onOpenChange={setShowQuizCreate}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="p-6 border-b bg-white">
               <DialogTitle>Assign Classroom Quiz</DialogTitle>
-              <DialogDescription>Create a basic assessment for your students.</DialogDescription>
+              <DialogDescription>Create a structured assessment for your students.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Quiz Title</Label>
-                  <Input value={quizData.title} onChange={e => setQuizData({...quizData, title: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Classroom</Label>
-                  <Select onValueChange={val => setQuizData({...quizData, classId: val})}>
-                    <SelectTrigger><SelectValue placeholder="Select class..." /></SelectTrigger>
-                    <SelectContent>{classes?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={quizData.description} onChange={e => setQuizData({...quizData, description: e.target.value})} />
-              </div>
-              
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-bold mb-4">Questions (Prototype Mode: 1 Required)</h4>
-                <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-                  <Input 
-                    placeholder="Question Text" 
-                    value={quizData.questions[0].questionText} 
-                    onChange={e => {
-                      const qs = [...quizData.questions];
-                      qs[0].questionText = e.target.value;
-                      setQuizData({...quizData, questions: qs});
-                    }}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    {quizData.questions[0].options.map((opt, i) => (
-                      <Input 
-                        key={i} 
-                        placeholder={`Option ${i+1}`} 
-                        value={opt} 
-                        onChange={e => {
-                          const qs = [...quizData.questions];
-                          qs[0].options[i] = e.target.value;
-                          setQuizData({...quizData, questions: qs});
-                        }}
-                      />
-                    ))}
+            <ScrollArea className="flex-1 p-6 bg-slate-50/30">
+              <div className="space-y-8 pb-10">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Quiz Title</Label>
+                    <Input value={quizData.title} onChange={e => setQuizData({...quizData, title: e.target.value})} placeholder="e.g. Midterm Biology" />
                   </div>
-                  <Input 
-                    placeholder="Correct Answer (must match one option exactly)" 
-                    value={quizData.questions[0].correctAnswer} 
-                    onChange={e => {
-                      const qs = [...quizData.questions];
-                      qs[0].correctAnswer = e.target.value;
-                      setQuizData({...quizData, questions: qs});
-                    }}
-                  />
+                  <div className="space-y-2">
+                    <Label>Classroom</Label>
+                    <Select onValueChange={val => setQuizData({...quizData, classId: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select class..." /></SelectTrigger>
+                      <SelectContent>{classes?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea value={quizData.description} onChange={e => setQuizData({...quizData, description: e.target.value})} placeholder="Instructions for your students..." />
+                </div>
+                
+                <div className="space-y-6 pt-6 border-t">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-primary">Questions</h4>
+                    <Button variant="outline" size="sm" onClick={handleAddQuestion} className="h-8">
+                      <Plus className="mr-2 h-3.5 w-3.5" />
+                      Add Question
+                    </Button>
+                  </div>
+                  
+                  {quizData.questions.map((q, qIndex) => (
+                    <div key={qIndex} className="p-5 bg-white border rounded-xl shadow-sm relative group/q">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover/q:opacity-100 transition-opacity text-destructive"
+                        onClick={() => handleRemoveQuestion(qIndex)}
+                        disabled={quizData.questions.length <= 1}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-muted-foreground">Question {qIndex + 1}</Label>
+                          <Input 
+                            placeholder="Enter question text..." 
+                            value={q.questionText} 
+                            onChange={e => {
+                              const qs = [...quizData.questions];
+                              qs[qIndex].questionText = e.target.value;
+                              setQuizData({...quizData, questions: qs});
+                            }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {q.options.map((opt, oIndex) => (
+                            <div key={oIndex} className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">Option {oIndex + 1}</Label>
+                              <Input 
+                                placeholder={`Option ${oIndex + 1}`} 
+                                value={opt} 
+                                onChange={e => {
+                                  const qs = [...quizData.questions];
+                                  qs[qIndex].options[oIndex] = e.target.value;
+                                  setQuizData({...quizData, questions: qs});
+                                }}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] text-green-600 font-bold">Correct Answer</Label>
+                          <Input 
+                            placeholder="Must match one option exactly" 
+                            value={q.correctAnswer} 
+                            onChange={e => {
+                              const qs = [...quizData.questions];
+                              qs[qIndex].correctAnswer = e.target.value;
+                              setQuizData({...quizData, questions: qs});
+                            }}
+                            className="h-8 text-xs border-green-200 focus:ring-green-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-            <DialogFooter>
+            </ScrollArea>
+            <DialogFooter className="p-4 border-t bg-white">
               <Button onClick={handleCreateQuiz} disabled={isCreatingQuiz || !quizData.title || !quizData.classId}>
                 {isCreatingQuiz && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Post Quiz to Class
+                Post {quizData.questions.length} Question Quiz
               </Button>
             </DialogFooter>
           </DialogContent>
