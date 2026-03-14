@@ -22,7 +22,11 @@ import {
   Loader2,
   Users2,
   Activity,
-  MessageSquare
+  MessageSquare,
+  Copy,
+  Check,
+  Zap,
+  Key
 } from "lucide-react"
 import { collection, query, where, doc, updateDoc } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
@@ -42,6 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function TeacherLivePage() {
   const { user } = useUser()
@@ -57,6 +62,12 @@ export default function TeacherLivePage() {
   const [viewers, setViewers] = useState(0)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+
+  // Zenstream States
+  const [copiedKey, setCopiedKey] = useState(false)
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const zenstreamRTMP = "rtmp://live.zenstream.io/app"
+  const zenstreamKey = `zn_${Math.random().toString(36).substring(7)}_${user?.uid?.substring(0, 5)}`
 
   // Settings State
   const [showSettings, setShowSettings] = useState(false)
@@ -177,16 +188,33 @@ export default function TeacherLivePage() {
 
   const toggleMic = () => {
     if (streamRef.current) {
-      streamRef.current.getAudioTracks()[0].enabled = !isMicOn
-      setIsMicOn(!isMicOn)
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !isMicOn;
+        setIsMicOn(!isMicOn);
+      }
     }
   }
 
   const toggleCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getVideoTracks()[0].enabled = !isCameraOn
-      setIsCameraOn(!isCameraOn)
+      const videoTrack = streamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !isCameraOn;
+        setIsCameraOn(!isCameraOn);
+      }
     }
+  }
+
+  const copyToClipboard = (text: string, type: 'url' | 'key') => {
+    navigator.clipboard.writeText(text)
+    if (type === 'url') setCopiedUrl(true)
+    if (type === 'key') setCopiedKey(true)
+    toast({ title: "Copied!", description: `${type === 'url' ? 'RTMP URL' : 'Stream Key'} added to clipboard.` })
+    setTimeout(() => {
+      if (type === 'url') setCopiedUrl(false)
+      if (type === 'key') setCopiedKey(false)
+    }, 2000)
   }
 
   return (
@@ -273,34 +301,57 @@ export default function TeacherLivePage() {
                 </div>
               </div>
 
-              {/* Classroom grid (Simulated Presence) */}
-              <div className="space-y-4">
-                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                  <Users2 className="h-4 w-4" />
-                  Classroom Engagement Grid
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                  {isLive ? (
-                    Array(6).fill(0).map((_, i) => (
-                      <div key={i} className="aspect-video bg-white rounded-2xl border-2 border-slate-100 shadow-sm flex items-center justify-center relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-slate-50 group-hover:bg-primary/5 transition-colors" />
-                        <Avatar className="h-10 w-10 ring-2 ring-white shadow-sm">
-                          <AvatarFallback className="bg-slate-200 text-xs font-bold text-slate-500">{String.fromCharCode(65 + i)}</AvatarFallback>
-                        </Avatar>
-                        <div className="absolute bottom-2 left-2 flex items-center gap-1">
-                          <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-[8px] font-bold text-slate-400 uppercase">Student {i+1}</span>
-                        </div>
+              {/* Zenstream RTMP Integration */}
+              <Card className="border-none shadow-sm overflow-hidden">
+                <CardHeader className="bg-slate-900 text-white p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                        <Zap className="h-4 w-4 text-primary" />
                       </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-slate-50">
-                      <Users className="h-8 w-8 text-slate-300 mb-2" />
-                      <p className="text-xs text-slate-400 font-medium italic">Student presence will appear here when you go live</p>
+                      <div>
+                        <CardTitle className="text-sm font-bold">Zenstream RTMP Client Integration</CardTitle>
+                        <CardDescription className="text-white/40 text-[10px] uppercase font-bold tracking-widest">External Encoder Config</CardDescription>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <Badge variant="secondary" className="bg-primary/20 text-primary border-none">Zenstream Active</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 bg-white space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+                        <Monitor className="h-3 w-3" />
+                        Zenstream Server URL
+                      </Label>
+                      <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <code className="text-xs font-mono text-slate-600 flex-1 truncate">{zenstreamRTMP}</code>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(zenstreamRTMP, 'url')}>
+                          {copiedUrl ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+                        <Key className="h-3 w-3" />
+                        Your Zenstream Key
+                      </Label>
+                      <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <code className="text-xs font-mono text-slate-600 flex-1 truncate">••••••••••••••••</code>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(zenstreamKey, 'key')}>
+                          {copiedKey ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-primary/80 leading-relaxed font-medium">
+                      Pro Tip: Use these credentials in OBS or any RTMP client to broadcast in high quality while using the Learnova dashboard to monitor student engagement and chat.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Sidebar Tools */}

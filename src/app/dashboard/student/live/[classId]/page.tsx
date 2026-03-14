@@ -21,7 +21,8 @@ import {
   CameraOff,
   Wifi,
   Activity,
-  Maximize2
+  Maximize2,
+  Zap
 } from "lucide-react"
 import { doc } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase"
@@ -31,6 +32,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 export default function StudentLiveLecturePage() {
   const params = useParams()
@@ -45,7 +47,7 @@ export default function StudentLiveLecturePage() {
   const [isCameraOn, setIsCameraOn] = useState(true)
   const [chatMessage, setChatMessage] = useState("")
   const [messages, setMessages] = useState([
-    { id: 1, user: "System", text: "Connected to Learnova Broadcast Server. Low-latency streaming active.", isSystem: true },
+    { id: 1, user: "System", text: "Connected to Zenstream RTMP Gateway. Low-latency broadcast optimized.", isSystem: true },
   ])
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -95,15 +97,21 @@ export default function StudentLiveLecturePage() {
 
   const toggleMic = () => {
     if (streamRef.current) {
-      streamRef.current.getAudioTracks()[0].enabled = !isMicOn
-      setIsMicOn(!isMicOn)
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !isMicOn;
+        setIsMicOn(!isMicOn);
+      }
     }
   }
 
   const toggleCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getVideoTracks()[0].enabled = !isCameraOn
-      setIsCameraOn(!isCameraOn)
+      const videoTrack = streamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !isCameraOn;
+        setIsCameraOn(!isCameraOn);
+      }
     }
   }
 
@@ -143,8 +151,12 @@ export default function StudentLiveLecturePage() {
           
           <div className="ml-auto flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+              <Zap className="h-3 w-3 text-primary" />
+              <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Zenstream 1080p</span>
+            </div>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
               <Wifi className="h-3 w-3 text-green-500" />
-              <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Excellent Connection</span>
+              <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">High Speed</span>
             </div>
           </div>
         </header>
@@ -156,11 +168,11 @@ export default function StudentLiveLecturePage() {
                <div className="aspect-video w-full max-w-5xl bg-slate-900 rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] relative border-4 border-white/5">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center z-10">
-                      <Radio className="h-16 w-16 text-red-500 animate-pulse mx-auto mb-6" />
-                      <p className="text-white font-extrabold text-2xl tracking-tight mb-2">INSTRUCTOR BROADCAST</p>
+                      <Zap className="h-16 w-16 text-primary animate-pulse mx-auto mb-6" />
+                      <p className="text-white font-extrabold text-2xl tracking-tight mb-2 uppercase">Zenstream Broadcast</p>
                       <div className="flex items-center justify-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
-                        <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Encrypted HD Feed Connected</p>
+                        <span className="h-2 w-2 rounded-full bg-primary animate-ping" />
+                        <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Receiving Low Latency RTMP Stream</p>
                       </div>
                     </div>
                     {/* Simulated blurred background for instructor */}
@@ -216,7 +228,7 @@ export default function StudentLiveLecturePage() {
                     <h2 className="text-white font-bold text-lg leading-none mb-1">{classData.name}</h2>
                     <div className="flex items-center gap-2">
                       <span className="text-primary font-bold text-[10px] uppercase tracking-widest">{classData.subject}</span>
-                      <span className="text-white/30 text-[10px] uppercase tracking-widest">• Interactive Lecture</span>
+                      <span className="text-white/30 text-[10px] uppercase tracking-widest">• Zenstream Interactive</span>
                     </div>
                   </div>
                 </div>
@@ -277,7 +289,7 @@ export default function StudentLiveLecturePage() {
                               ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/20" 
                               : "bg-white/5 text-white/90 rounded-tl-none border border-white/10"
                           )}>
-                            {m.content || m.text}
+                            {m.text}
                           </div>
                         </div>
                       </div>
