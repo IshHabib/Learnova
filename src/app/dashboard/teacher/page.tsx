@@ -67,16 +67,19 @@ export default function TeacherDashboard() {
     const classes = teacherClasses || []
     const attempts = teacherAttempts || []
     
-    const totalStudents = classes.reduce((acc, curr) => acc + (curr.studentIds?.length || 0), 0)
+    // Calculate UNIQUE students across all classes
+    const studentSet = new Set<string>()
+    classes.forEach(c => c.studentIds?.forEach((id: string) => studentSet.add(id)))
+    
     const avgScore = attempts.length > 0
       ? Math.round(attempts.reduce((acc, curr) => acc + (curr.score || 0), 0) / attempts.length)
       : 0
 
     return {
-      totalStudents,
+      totalStudents: studentSet.size,
       avgClassScore: avgScore,
       activeLectures: 0, 
-      pendingTasks: attempts.length 
+      resultsTracked: attempts.length 
     }
   }, [teacherClasses, teacherAttempts])
 
@@ -102,17 +105,17 @@ export default function TeacherDashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border-none bg-accent text-accent-foreground">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                <CardTitle className="text-sm font-medium">Unique Students</CardTitle>
                 <Users className="h-4 w-4 opacity-70" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{isLoading ? "..." : stats.totalStudents}</div>
-                <p className="text-xs opacity-70">Across your classes</p>
+                <p className="text-xs opacity-70">Enrolled in your classes</p>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-none">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg Class Score</CardTitle>
+                <CardTitle className="text-sm font-medium">Avg Proficiency</CardTitle>
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -136,7 +139,7 @@ export default function TeacherDashboard() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{isLoading ? "..." : stats.pendingTasks}</div>
+                <div className="text-2xl font-bold">{isLoading ? "..." : stats.resultsTracked}</div>
                 <p className="text-xs text-muted-foreground">Total attempts logged</p>
               </CardContent>
             </Card>
@@ -146,8 +149,8 @@ export default function TeacherDashboard() {
             <Card className="md:col-span-4 shadow-sm border-none">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="font-headline text-foreground">Class Performance Insights</CardTitle>
-                  <CardDescription>Aggregate improvement across your student roster</CardDescription>
+                  <CardTitle className="font-headline text-foreground">Performance Insights</CardTitle>
+                  <CardDescription>Improvement trends across all students</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => window.location.href = "/dashboard/teacher/analytics"}>Details</Button>
               </CardHeader>
@@ -161,7 +164,7 @@ export default function TeacherDashboard() {
                   <Brain className="h-5 w-5 text-primary" />
                   AI Strategy Engine
                 </CardTitle>
-                <CardDescription>Generated based on current class metrics</CardDescription>
+                <CardDescription>Personalized instructional suggestions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {teacherClasses?.length === 0 ? (
@@ -176,9 +179,9 @@ export default function TeacherDashboard() {
                       <span className="text-sm font-semibold">Analytics Active</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      AI is monitoring student progress. Insights will appear as students complete assessments.
+                      AI is monitoring student progress. Actionable insights will appear as your students complete assessments.
                     </p>
-                    <Button className="w-full mt-2" variant="outline" size="sm">Request Strategy Report</Button>
+                    <Button className="w-full mt-2" variant="outline" size="sm">View Initial Findings</Button>
                   </div>
                 )}
               </CardContent>
@@ -202,11 +205,11 @@ export default function TeacherDashboard() {
                 teacherClasses?.map((session, i) => (
                   <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-white shadow-sm border hover:border-primary/30 transition-colors group cursor-pointer" onClick={() => window.location.href = `/dashboard/teacher/classes`}>
                     <div className="flex items-center gap-6">
-                      <span className="text-sm font-bold text-primary w-20">{session.subject}</span>
+                      <span className="text-sm font-bold text-primary w-24">{session.subject}</span>
                       <div>
                         <h4 className="font-semibold text-sm group-hover:text-primary transition-colors text-foreground">{session.name}</h4>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{session.studentIds?.length || 0} Students</span>
+                          <span>{session.studentIds?.length || 0} Students enrolled</span>
                         </div>
                       </div>
                     </div>

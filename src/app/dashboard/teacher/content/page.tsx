@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2, Eye, X } from "lucide-react"
+import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2, Eye, X, BookOpen } from "lucide-react"
 import { collection, query, where, doc, deleteDoc, addDoc, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -111,7 +111,7 @@ export default function TeacherContentPage() {
       await addDoc(notesRef, {
         title: `${aiTopic} - AI Study Notes`,
         contentUrl: "data:text/markdown;base64," + btoa(result.notes),
-        content: result.notes, // Storing raw content for easier viewing
+        content: result.notes, 
         classId: aiClassId,
         teacherId: user.uid,
         classTeacherId: user.uid,
@@ -123,7 +123,7 @@ export default function TeacherContentPage() {
 
       toast({ 
         title: "AI Notes Generated!", 
-        description: `Successfully created materials for ${selectedClass.name}.` 
+        description: `Successfully created and posted for ${selectedClass.name}.` 
       })
       setAiTopic("")
       setShowAiGen(false)
@@ -203,7 +203,7 @@ export default function TeacherContentPage() {
                       AI Study Note Generator
                     </DialogTitle>
                     <DialogDescription>
-                      AI will create structured, detailed study notes based on your topic.
+                      Our AI engine will create structured, detailed study notes based on your topic.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -248,7 +248,7 @@ export default function TeacherContentPage() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Upload Material</DialogTitle>
-                    <DialogDescription>Share external PDFs or slides.</DialogDescription>
+                    <DialogDescription>Share PDFs, Slides, or External Resources.</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -297,7 +297,7 @@ export default function TeacherContentPage() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
               className="pl-10 text-sm"
-              placeholder="Filter materials..."
+              placeholder="Filter library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -309,9 +309,9 @@ export default function TeacherContentPage() {
             </div>
           ) : filteredContent.length === 0 ? (
             <div className="text-center py-24 bg-muted/5 rounded-2xl border-2 border-dashed">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="font-bold">Library is empty</h3>
-              <p className="text-sm text-muted-foreground">Start by using AI to generate notes or upload your own files.</p>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">Use the AI engine to generate detailed study notes or upload your own files to get started.</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -338,7 +338,7 @@ export default function TeacherContentPage() {
                   <CardContent className="flex gap-2">
                     <Button variant="secondary" size="sm" className="flex-1 h-8 text-[10px]" onClick={() => handleView(item)}>
                       <Eye className="mr-1.5 h-3 w-3" />
-                      Checkout
+                      View Material
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(item.classId, item.id)}>
                       <Trash2 className="h-3 w-3" />
@@ -351,35 +351,39 @@ export default function TeacherContentPage() {
         </main>
 
         <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-            <DialogHeader className="p-6 border-b">
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+            <DialogHeader className="p-6 border-b bg-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <DialogTitle className="text-xl font-headline">{viewingNote?.title}</DialogTitle>
-                  <DialogDescription>
-                    Generated Study Materials
+                  <DialogTitle className="text-xl font-headline text-primary flex items-center gap-2">
+                    <BookOpen className="h-5 w-5" />
+                    {viewingNote?.title}
+                  </DialogTitle>
+                  <DialogDescription className="mt-1">
+                    Classroom Resource • {viewingNote?.isAIGenerated ? 'AI Generated' : 'Upload'}
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
             <ScrollArea className="flex-1 p-8 bg-slate-50/50">
-              <div className="max-w-3xl mx-auto prose prose-slate">
+              <div className="max-w-3xl mx-auto">
                 {viewingNote?.content ? (
-                  <div className="whitespace-pre-wrap font-sans leading-relaxed text-slate-800">
+                  <div className="whitespace-pre-wrap font-sans leading-relaxed text-slate-800 bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     {viewingNote.content}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">This note does not have text content to display. Please view the external link.</p>
-                    <Button variant="link" onClick={() => window.open(viewingNote?.contentUrl)}>
-                      Open External Resource <ExternalLink className="ml-2 h-4 w-4" />
+                  <div className="text-center py-24 bg-white rounded-2xl border border-dashed">
+                    <ExternalLink className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                    <p className="text-muted-foreground mb-4">This material is hosted externally.</p>
+                    <Button onClick={() => window.open(viewingNote?.contentUrl)}>
+                      Open in New Tab <ExternalLink className="ml-2 h-4 w-4" />
                     </Button>
                   </div>
                 )}
               </div>
             </ScrollArea>
             <DialogFooter className="p-4 border-t bg-white">
-              <Button onClick={() => setViewingNote(null)}>Close Viewer</Button>
+              <Button onClick={() => setViewingNote(null)}>Close Reader</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
