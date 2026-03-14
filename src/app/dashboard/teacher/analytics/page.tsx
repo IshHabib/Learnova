@@ -1,6 +1,6 @@
-
 "use client"
 
+import { useMemo } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,20 +15,36 @@ export default function TeacherAnalyticsPage() {
   const db = useFirestore()
 
   // Fetch all quiz attempts across all classes managed by this teacher
+  // Note: This requires a COLLECTION_GROUP index and specific security rules
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
-    return query(collectionGroup(db, "quizAttempts"), where("teacherId", "==", user.uid))
+    return query(
+      collectionGroup(db, "quizAttempts"), 
+      where("teacherId", "==", user.uid)
+    )
   }, [db, user?.uid])
 
   const { data: attempts, isLoading } = useCollection(attemptsQuery)
 
-  const stats = useMemoFirebase(() => {
+  const stats = useMemo(() => {
     if (!attempts) return { avg: 0, count: 0 }
     const total = attempts.reduce((acc, curr) => acc + (curr.score || 0), 0)
     return {
       avg: attempts.length > 0 ? Math.round(total / attempts.length) : 0,
       count: attempts.length
     }
+  }, [attempts])
+
+  const chartData = useMemo(() => {
+    if (!attempts) return []
+    // Simplified chart data showing scores over time
+    return [...attempts]
+      .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
+      .slice(-10) // Last 10 attempts
+      .map((a, i) => ({
+        name: a.submissionDate ? new Date(a.submissionDate).toLocaleDateString() : `Item ${i}`,
+        score: a.score || 0
+      }))
   }, [attempts])
 
   return (
@@ -79,7 +95,7 @@ export default function TeacherAnalyticsPage() {
               <CardDescription>Visualizing student improvement across all classes</CardDescription>
             </CardHeader>
             <CardContent>
-              <PerformanceChart />
+              <PerformanceChart data={chartData} />
             </CardContent>
           </Card>
 

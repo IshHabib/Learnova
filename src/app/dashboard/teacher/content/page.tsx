@@ -1,13 +1,12 @@
-
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2 } from "lucide-react"
-import { collectionGroup, query, where, doc, deleteDoc, collection, addDoc } from "firebase/firestore"
+import { collection, query, where, doc, deleteDoc, addDoc, getDocs, onSnapshot } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
@@ -26,10 +25,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { generateStudyNotes } from "@/ai/flows/generate-study-notes"
 
 export default function TeacherContentPage() {
-  const { user } = useUser()
+  const { user } = userUser()
   const db = useFirestore()
   const { toast } = useToast()
   
+  const [content, setContent] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+
   // State for manual upload
   const [isUploading, setIsUploading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
@@ -41,18 +44,43 @@ export default function TeacherContentPage() {
   const [aiTopic, setAiTopic] = useState("")
   const [aiClassId, setAiClassId] = useState("")
 
-  const contentQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null
-    return query(collectionGroup(db, "notes"), where("classTeacherId", "==", user.uid))
-  }, [db, user?.uid])
-
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(collection(db, "classes"), where("teacherId", "==", user.uid))
   }, [db, user?.uid])
 
-  const { data: content, isLoading } = useCollection(contentQuery)
   const { data: classes } = useCollection(classesQuery)
+
+  useEffect(() => {
+    if (!db || !user?.uid) return
+
+    // Instead of collectionGroup, fetch classes first then subcollections
+    // This avoids complex permission/index requirements for group queries
+    const q = query(collection(db, "classes"), where("teacherId", "==", user.uid))
+    
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const classIds = snapshot.docs.map(doc => doc.id)
+      
+      if (classIds.length === 0) {
+        setContent([])
+        setIsLoading(false)
+        return
+      }
+
+      const allNotes: any[] = []
+      for (const classId of classIds) {
+        const notesSnap = await getDocs(collection(db, "classes", classId, "notes"))
+        notesSnap.forEach(doc => {
+          allNotes.push({ id: doc.id, ...doc.data(), classId })
+        })
+      }
+      
+      setContent(allNotes)
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [db, user?.uid])
 
   const handleDelete = async (classId: string, noteId: string) => {
     try {
@@ -74,14 +102,12 @@ export default function TeacherContentPage() {
       const selectedClass = classes?.find(c => c.id === aiClassId)
       if (!selectedClass) throw new Error("Class not found")
 
-      // 1. Generate the notes content using AI
       const result = await generateStudyNotes({ topic: aiTopic })
       
-      // 2. Save the generated notes to Firestore
       const notesRef = collection(db, "classes", aiClassId, "notes")
       await addDoc(notesRef, {
         title: `${aiTopic} - Study Notes`,
-        contentUrl: "data:text/markdown;base64," + btoa(result.notes), // Storing small markdown in URL for demo
+        contentUrl: "data:text/markdown;base64," + btoa(result.notes),
         classId: aiClassId,
         teacherId: user.uid,
         classTeacherId: user.uid,
@@ -137,6 +163,10 @@ export default function TeacherContentPage() {
       setIsUploading(false)
     }
   }
+
+  const filteredContent = content.filter(item => 
+    item.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <SidebarProvider>
@@ -253,17 +283,19 @@ export default function TeacherContentPage() {
         <main className="p-4 md:p-6 lg:p-8">
           <div className="mb-8 relative max-w-sm">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <input 
-              className="w-full bg-white border rounded-lg py-2 pl-10 text-sm focus:ring-2 ring-primary/20 outline-none"
+            <Input 
+              className="pl-10 text-sm"
               placeholder="Filter materials..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
           {isLoading ? (
-            <div className="space-y-4">
-              {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
             </div>
-          ) : !content || content.length === 0 ? (
+          ) : filteredContent.length === 0 ? (
             <div className="text-center py-24 bg-muted/5 rounded-2xl border-2 border-dashed">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="font-bold">Library is empty</h3>
@@ -271,7 +303,7 @@ export default function TeacherContentPage() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {content.map(item => (
+              {filteredContent.map(item => (
                 <Card key={item.id} className="border-none shadow-sm hover:shadow-md transition-all group overflow-hidden">
                   <div className={`h-1.5 w-full ${item.isAIGenerated ? 'bg-primary' : 'bg-slate-300'}`} />
                   <CardHeader className="pb-3">
@@ -308,4 +340,9 @@ export default function TeacherContentPage() {
       </SidebarInset>
     </SidebarProvider>
   )
+}
+
+function userUser() {
+  const { user } = useUser()
+  return { user }
 }

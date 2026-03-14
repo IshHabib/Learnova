@@ -43,25 +43,29 @@ service cloud.firestore {
     }
 
     // Collection Group rules for cross-class queries
-    // NOTE: These rules require queries to be "provably safe" with matching .where() filters
+    // Split into individual statements to be "provably safe" for the query optimizer
     
     match /{path=**}/notes/{noteId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow get: if isSignedIn();
     }
 
     match /{path=**}/videos/{videoId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow get: if isSignedIn();
     }
 
     match /{path=**}/quizzes/{quizId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow get: if isSignedIn();
     }
 
     match /{path=**}/studyGroups/{groupId} {
-      allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
+      allow list: if isSignedIn() && resource.data.classTeacherId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.classStudentIds;
       allow get: if isSignedIn();
     }
 
