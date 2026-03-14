@@ -169,7 +169,7 @@ export default function StudentDashboard() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-7">
-            <Card className="md:col-span-4 shadow-sm border-none">
+            <Card className="md:col-span-4 shadow-sm border-none overflow-hidden">
               <CardHeader>
                 <CardTitle className="font-headline text-foreground">Performance Trend</CardTitle>
                 <CardDescription>Your progress across all subjects</CardDescription>
