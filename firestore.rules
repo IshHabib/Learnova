@@ -22,8 +22,14 @@ service cloud.firestore {
       
       // Student's quiz attempts
       match /quizAttempts/{attemptId} {
+        // Owner can always read/write
         allow read, write: if isOwner(userId);
-        allow read: if isSignedIn() && (resource.data.teacherId == request.auth.uid || resource.data.studentId == request.auth.uid);
+        
+        // Teachers can read attempts for their own assigned quizzes/classes
+        allow read: if isSignedIn() && (
+          resource.data.teacherId == request.auth.uid || 
+          resource.data.classTeacherId == request.auth.uid
+        );
       }
     }
 
@@ -38,15 +44,15 @@ service cloud.firestore {
       // Sub-collections
       match /notes/{id} { 
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+        allow write: if isSignedIn();
       }
       match /videos/{id} { 
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+        allow write: if isSignedIn();
       }
       match /quizzes/{id} { 
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+        allow write: if isSignedIn();
       }
       match /studyGroups/{id} { 
         allow read: if isSignedIn();
@@ -70,7 +76,11 @@ service cloud.firestore {
     }
 
     match /{path=**}/quizAttempts/{attemptId} {
-      allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
+      allow list: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        resource.data.teacherId == request.auth.uid ||
+        resource.data.classTeacherId == request.auth.uid
+      );
       allow get: if isSignedIn();
     }
   }

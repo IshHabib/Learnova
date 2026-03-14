@@ -128,7 +128,7 @@ export default function TeacherContentPage() {
             )
             const snap = await getDocs(q)
             snap.forEach(doc => {
-              attempts.push({ id: doc.id, ...doc.data(), studentName: "Student" }) // In a real app, we'd fetch names too
+              attempts.push({ id: doc.id, ...doc.data() })
             })
           } catch (e) {
             console.error("Error fetching student attempt:", e)
@@ -460,7 +460,7 @@ export default function TeacherContentPage() {
                                   <User className="h-5 w-5 text-primary" />
                                 </div>
                                 <div>
-                                  <h4 className="font-bold text-sm">Anonymous Learner</h4>
+                                  <h4 className="font-bold text-sm">{attempt.studentName || "Learner"}</h4>
                                   <p className="text-[10px] text-muted-foreground">Submitted {new Date(attempt.submissionDate).toLocaleDateString()}</p>
                                 </div>
                               </div>
@@ -523,7 +523,7 @@ export default function TeacherContentPage() {
             </Tabs>
 
             <DialogFooter className="p-4 border-t bg-white">
-              <Button onClick={() => setViewingQuiz(null)}>Close Library Review</Button>
+              <Button onClick={() => setViewingQuiz(null)}>Close Review</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

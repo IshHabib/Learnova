@@ -120,7 +120,8 @@ export default function StudentQuizzesPage() {
         id: "ai_generated",
         title: result.quizTitle,
         questions: result.questions,
-        type: 'ai'
+        type: 'ai',
+        teacherId: "self-study"
       })
       setShowGenDialog(false)
       setCurrentQuestionIndex(0)
@@ -160,7 +161,7 @@ export default function StudentQuizzesPage() {
     setIsSubmitting(true)
     
     let correctCount = 0
-    activeQuiz.questions.forEach((q, idx) => {
+    activeQuiz.questions.forEach((q: any, idx: number) => {
       if (selectedAnswers[idx] === q.correctAnswer) {
         correctCount++
       }
@@ -173,8 +174,11 @@ export default function StudentQuizzesPage() {
       await setDoc(attemptRef, {
         id: attemptRef.id,
         studentId: user.uid,
-        teacherId: activeQuiz.teacherId || "self-study",
+        studentName: user.displayName || "Learner",
+        teacherId: activeQuiz.teacherId || activeQuiz.classTeacherId || "self-study",
+        classTeacherId: activeQuiz.classTeacherId || "self-study",
         quizId: activeQuiz.id,
+        classId: activeQuiz.classId || "self-study",
         score: calculatedScore,
         submissionDate: new Date().toISOString(),
         feedback: `You got ${correctCount} out of ${activeQuiz.questions.length} correct.`,
@@ -197,7 +201,8 @@ export default function StudentQuizzesPage() {
     if (!attempt.questions) return
     setActiveQuiz({
       title: attempt.title || "Practice Quiz",
-      questions: attempt.questions
+      questions: attempt.questions,
+      type: 'history'
     })
     setSelectedAnswers(attempt.userAnswers || {})
     setFinalScore(attempt.score || 0)
@@ -222,7 +227,7 @@ export default function StudentQuizzesPage() {
               </Card>
 
               <div className="space-y-6">
-                {activeQuiz.questions.map((q, idx) => {
+                {activeQuiz.questions.map((q: any, idx: number) => {
                   const isCorrect = selectedAnswers[idx] === q.correctAnswer
                   return (
                     <Card key={idx} className={`border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
@@ -274,14 +279,14 @@ export default function StudentQuizzesPage() {
               <div className="w-full max-w-2xl">
                 <Progress value={progress} className="mb-8" />
                 <Card>
-                  <CardHeader><CardTitle className="text-xl">{currentQ.questionText}</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-xl">{currentQ?.questionText}</CardTitle></CardHeader>
                   <CardContent>
                     <RadioGroup 
                       value={selectedAnswers[currentQuestionIndex]} 
                       onValueChange={(val) => setSelectedAnswers(prev => ({...prev, [currentQuestionIndex]: val}))}
                       className="space-y-3"
                     >
-                      {currentQ.options?.map((opt, i) => (
+                      {currentQ?.options?.map((opt: string, i: number) => (
                         <div key={i} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                           <RadioGroupItem value={opt} id={`opt-${i}`} />
                           <Label htmlFor={`opt-${i}`} className="flex-1 cursor-pointer">{opt}</Label>
