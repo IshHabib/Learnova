@@ -23,7 +23,7 @@ export default function TeacherDashboard() {
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef)
 
   // 2. Fetch Teacher's Classes
-  const classesQuery = useMemoFirebase(() => {
+  const teacherClassesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(collection(db, "classes"), where("teacherId", "==", user.uid))
   }, [db, user?.uid])
