@@ -17,6 +17,7 @@ export default function StudentAnalyticsPage() {
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
+    // Collection Group query for all attempts by this student
     return query(
       collectionGroup(db, "quizAttempts"), 
       where("studentId", "==", user.uid),

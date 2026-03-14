@@ -22,11 +22,15 @@ service cloud.firestore {
 
     // Quiz attempts - Specific path for students
     match /users/{userId}/quizAttempts/{attemptId} {
-      allow read: if isOwner(userId) || (isSignedIn() && resource.data.teacherId == request.auth.uid);
+      // Split read into get and list to avoid query constraint issues for owners
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) || (isSignedIn() && resource.data.teacherId == request.auth.uid);
       allow create: if isOwner(userId);
     }
 
-    // Quiz attempts - Collection Group rule for teachers to see all attempts
+    // Global Collection Group rules for cross-class content
+    // These use denormalized fields for Authorization Independence (no get() calls)
+    
     match /{path=**}/quizAttempts/{attemptId} {
       allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid || 
@@ -34,7 +38,39 @@ service cloud.firestore {
       );
     }
 
-    // Classes
+    match /{path=**}/notes/{noteId} {
+      allow list: if isSignedIn() && (
+        request.auth.uid in resource.data.classStudentIds || 
+        resource.data.classTeacherId == request.auth.uid
+      );
+      allow get: if isSignedIn();
+    }
+
+    match /{path=**}/videos/{videoId} {
+      allow list: if isSignedIn() && (
+        request.auth.uid in resource.data.classStudentIds || 
+        resource.data.classTeacherId == request.auth.uid
+      );
+      allow get: if isSignedIn();
+    }
+
+    match /{path=**}/quizzes/{quizId} {
+      allow list: if isSignedIn() && (
+        request.auth.uid in resource.data.classStudentIds || 
+        resource.data.classTeacherId == request.auth.uid
+      );
+      allow get: if isSignedIn();
+    }
+
+    match /{path=**}/studyGroups/{groupId} {
+      allow list: if isSignedIn() && (
+        request.auth.uid in resource.data.classStudentIds || 
+        resource.data.classTeacherId == request.auth.uid
+      );
+      allow get: if isSignedIn();
+    }
+
+    // Specific path rules for writes (Teachers only)
     match /classes/{classId} {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn(); 
@@ -45,34 +81,30 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
     }
 
-    // Notes
     match /classes/{classId}/notes/{noteId} {
-      allow read: if isSignedIn();
       allow write: if isSignedIn() && (
+        request.resource.data.classTeacherId == request.auth.uid ||
         get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
     }
 
-    // Videos
     match /classes/{classId}/videos/{videoId} {
-      allow read: if isSignedIn();
       allow write: if isSignedIn() && (
+        request.resource.data.classTeacherId == request.auth.uid ||
         get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
     }
 
-    // Quizzes
     match /classes/{classId}/quizzes/{quizId} {
-      allow read: if isSignedIn();
       allow write: if isSignedIn() && (
+        request.resource.data.classTeacherId == request.auth.uid ||
         get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
     }
 
-    // Study Groups
     match /classes/{classId}/studyGroups/{groupId} {
-      allow read: if isSignedIn();
       allow write: if isSignedIn() && (
+        request.resource.data.classTeacherId == request.auth.uid ||
         get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid
       );
     }
