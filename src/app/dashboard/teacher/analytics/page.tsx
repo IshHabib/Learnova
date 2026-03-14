@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react"
@@ -7,15 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { collectionGroup, query, where } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { Brain, TrendingUp, Users, Target } from "lucide-react"
+import { Brain, TrendingUp, Users, Target, AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function TeacherAnalyticsPage() {
   const { user } = useUser()
   const db = useFirestore()
 
-  // Fetch all quiz attempts across all classes managed by this teacher
-  // Note: This requires a COLLECTION_GROUP index and specific security rules
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
@@ -24,7 +23,7 @@ export default function TeacherAnalyticsPage() {
     )
   }, [db, user?.uid])
 
-  const { data: attempts, isLoading } = useCollection(attemptsQuery)
+  const { data: attempts, isLoading, error: attemptsError } = useCollection(attemptsQuery)
 
   const stats = useMemo(() => {
     if (!attempts) return { avg: 0, count: 0 }
@@ -37,15 +36,16 @@ export default function TeacherAnalyticsPage() {
 
   const chartData = useMemo(() => {
     if (!attempts) return []
-    // Simplified chart data showing scores over time
     return [...attempts]
       .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
-      .slice(-10) // Last 10 attempts
+      .slice(-10) 
       .map((a, i) => ({
         name: a.submissionDate ? new Date(a.submissionDate).toLocaleDateString() : `Item ${i}`,
         score: a.score || 0
       }))
   }, [attempts])
+
+  const isIndexError = attemptsError?.message?.includes("index")
 
   return (
     <SidebarProvider>
@@ -56,6 +56,18 @@ export default function TeacherAnalyticsPage() {
           <h1 className="text-lg font-semibold font-headline">Student Performance Analytics</h1>
         </header>
         <main className="p-4 md:p-6 lg:p-8 space-y-8">
+          {isIndexError && (
+            <Card className="border-amber-200 bg-amber-50 text-amber-900 shadow-none">
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-bold">Aggregated Indexing Required</p>
+                  <p className="opacity-80">To enable cross-class performance tracking, please click the link provided in the error notification to build the required search index.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="border-none bg-primary text-primary-foreground">
               <CardHeader className="pb-2">

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react"
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle } from "lucide-react"
+import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle, Info } from "lucide-react"
 import { doc, collection, query, where, collectionGroup } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 
@@ -15,21 +16,18 @@ export default function TeacherDashboard() {
   const { user } = useUser()
   const db = useFirestore()
 
-  // 1. Fetch User Profile
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "users", user.uid)
   }, [db, user?.uid])
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef)
 
-  // 2. Fetch Teacher's Classes
   const teacherClassesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(collection(db, "classes"), where("teacherId", "==", user.uid))
   }, [db, user?.uid])
   const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
-  // 3. Fetch All Quiz Attempts for this Teacher's classes
   const teacherAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
@@ -37,9 +35,8 @@ export default function TeacherDashboard() {
       where("teacherId", "==", user.uid)
     )
   }, [db, user?.uid])
-  const { data: teacherAttempts, isLoading: attemptsLoading } = useCollection(teacherAttemptsQuery)
+  const { data: teacherAttempts, isLoading: attemptsLoading, error: attemptsError } = useCollection(teacherAttemptsQuery)
 
-  // Calculate Real-time Stats
   const stats = useMemo(() => {
     const classes = teacherClasses || []
     const attempts = teacherAttempts || []
@@ -58,6 +55,7 @@ export default function TeacherDashboard() {
   }, [teacherClasses, teacherAttempts])
 
   const isLoading = userLoading || classesLoading || attemptsLoading
+  const isIndexError = attemptsError?.message?.includes("index")
 
   return (
     <SidebarProvider>
@@ -76,6 +74,18 @@ export default function TeacherDashboard() {
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 space-y-8">
+          {isIndexError && (
+            <Card className="border-amber-200 bg-amber-50 text-amber-900 shadow-none">
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-bold">Database Indexing Required</p>
+                  <p className="opacity-80">To see aggregated student performance, please click the link in the error message to create the required Firestore index.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border-none bg-accent text-accent-foreground">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
