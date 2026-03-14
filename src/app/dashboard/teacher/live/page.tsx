@@ -374,8 +374,9 @@ export default function TeacherLivePage() {
                     <CardContent className="p-4 pt-2">
                       <div className="text-2xl font-black text-slate-700">{isLive ? "00:42:15" : "00:00:00"}</div>
                     </CardContent>
-                  </div>
-                </section>
+                  </Card>
+                </div>
+              </section>
 
               <section className="space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Target Classroom</h3>
