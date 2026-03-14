@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { format } from "date-fns"
 
 export default function TeacherClassesPage() {
   const { user } = useUser()
@@ -181,5 +181,3 @@ export default function TeacherClassesPage() {
     </SidebarProvider>
   )
 }
-
-import { format } from "date-fns"

@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, CheckCircle2, AlertCircle } from "lucide-react"
-import { collection, query, orderBy } from "firebase/firestore"
+import { collection, query, where, orderBy } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,10 +14,12 @@ export default function StudentQuizzesPage() {
   const db = useFirestore()
 
   // Fetch all quiz attempts from the user's specific collection
+  // Added where filter to satisfy security rules for collection group matches
   const attemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
-      collection(db, "users", user.uid, "quizAttempts"), 
+      collection(db, "users", user.uid, "quizAttempts"),
+      where("studentId", "==", user.uid),
       orderBy("submissionDate", "desc")
     )
   }, [db, user?.uid])

@@ -113,7 +113,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg">
+            <div className="flex items-center gap-2 p-2">
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={`https://picsum.photos/seed/${userName}/32/32`} alt={userName} />
                 <AvatarFallback className="rounded-lg">{userName.substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -122,12 +122,10 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
                 <span className="truncate font-semibold text-foreground">{userName}</span>
                 <span className="truncate text-xs text-muted-foreground">{userRole === "teacher" ? "Professor" : "Student"}</span>
               </div>
-              <div className="ml-auto flex items-center">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
-                  <LogOut className="size-4 text-muted-foreground hover:text-destructive transition-colors" />
-                </Button>
-              </div>
-            </SidebarMenuButton>
+              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={handleSignOut}>
+                <LogOut className="size-4 text-muted-foreground hover:text-destructive transition-colors" />
+              </Button>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

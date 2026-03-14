@@ -5,7 +5,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
-import { collection, query, orderBy } from "firebase/firestore"
+import { collection, query, where, orderBy } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { format } from "date-fns"
 import { Activity, Award, Target } from "lucide-react"
@@ -18,6 +18,7 @@ export default function StudentAnalyticsPage() {
     if (!db || !user?.uid) return null
     return query(
       collection(db, "users", user.uid, "quizAttempts"),
+      where("studentId", "==", user.uid),
       orderBy("submissionDate", "asc")
     )
   }, [db, user?.uid])

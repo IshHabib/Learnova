@@ -33,11 +33,13 @@ export default function StudentDashboard() {
   }, [db, user?.uid])
   const { data: userClasses, isLoading: classesLoading } = useCollection(classesQuery)
 
-  // 3. Fetch User's Quiz Attempts from their own subcollection (simpler & safer)
+  // 3. Fetch User's Quiz Attempts
+  // Added where("studentId", "==", user.uid) to satisfy "provably safe" security rules
   const quizAttemptsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(
       collection(db, "users", user.uid, "quizAttempts"),
+      where("studentId", "==", user.uid),
       orderBy("submissionDate", "desc")
     )
   }, [db, user?.uid])
@@ -62,7 +64,7 @@ export default function StudentDashboard() {
 
   // Prepare Chart Data
   const chartData = useMemo(() => {
-    if (!quizAttempts) return []
+    if (!quizAttempts || quizAttempts.length === 0) return []
     return [...quizAttempts]
       .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
       .map((attempt, index) => ({
