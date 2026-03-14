@@ -116,16 +116,16 @@ export default function StudentQuizzesPage() {
     })
 
     const calculatedScore = Math.round((correctCount / activeQuiz.questions.length) * 100)
-    const attemptId = `attempt_${Date.now()}`
+    
+    // Generate a unique ID for this attempt
+    const attemptRef = doc(collection(db, "users", user.uid, "quizAttempts"))
 
     try {
-      const attemptRef = doc(db, "users", user.uid, "quizAttempts", attemptId)
-      
       // Save full attempt data for later review
       await setDoc(attemptRef, {
-        id: attemptId,
+        id: attemptRef.id,
         studentId: user.uid,
-        teacherId: "self-study", // Denormalized for collectionGroup provably safe queries
+        teacherId: "self-study", // Ensures consistent queries
         quizId: "ai_generated",
         score: calculatedScore,
         submissionDate: new Date().toISOString(),

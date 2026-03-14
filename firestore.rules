@@ -12,18 +12,25 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isTeacher() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
+    }
+
     // --- Collection Rules ---
 
     // User profiles
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow write: if isOwner(userId);
       
-      // Student's own quiz attempts
+      // Student's quiz attempts
       match /quizAttempts/{attemptId} {
         // A student can read/write their own attempts.
-        // A teacher can read attempts where they are the assigned teacher.
-        allow read: if isSignedIn() && (isOwner(userId) || resource.data.teacherId == request.auth.uid);
+        // A teacher can read attempts where they are specifically listed as the teacherId.
+        // For list operations, the client MUST filter by the owner or teacherId.
+        allow list: if isSignedIn() && (isOwner(userId) || resource.data.teacherId == request.auth.uid);
+        allow get: if isSignedIn() && (isOwner(userId) || resource.data.teacherId == request.auth.uid);
         allow create: if isOwner(userId);
         allow update, delete: if isOwner(userId);
       }
@@ -31,7 +38,8 @@ service cloud.firestore {
 
     // Classes
     match /classes/{classId} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn(); 
       allow update: if isSignedIn() && (
         resource.data.teacherId == request.auth.uid || 
@@ -39,14 +47,28 @@ service cloud.firestore {
       );
       allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
 
-      // Sub-collections - direct access for members/teachers
+      // Sub-collections
       match /notes/{id} { allow read, write: if isSignedIn(); }
       match /videos/{id} { allow read, write: if isSignedIn(); }
       match /quizzes/{id} { allow read, write: if isSignedIn(); }
       match /studyGroups/{id} { allow read, write: if isSignedIn(); }
     }
 
-    // --- Collection Group Rules (Provably Safe for Queries) ---
+    // Chat Sessions
+    match /chatSessions/{sessionId} {
+      allow get: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
+
+      match /messages/{messageId} {
+        allow list: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
+        allow get: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+      }
+    }
+
+    // --- Global Collection Group Rules (Provably Safe for Queries) ---
     
     match /{path=**}/notes/{noteId} {
       allow list: if isSignedIn() && (resource.data.classTeacherId == request.auth.uid || request.auth.uid in resource.data.classStudentIds);
@@ -71,21 +93,6 @@ service cloud.firestore {
     match /{path=**}/quizAttempts/{attemptId} {
       allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
       allow get: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-    }
-
-    // Chat Sessions
-    match /chatSessions/{sessionId} {
-      allow get, list: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds);
-
-      // Messages - Denormalized check for provably safe listing
-      match /messages/{messageId} {
-        allow list: if isSignedIn() && (request.auth.uid in resource.data.chatSessionParticipantIds);
-        allow get: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
-      }
     }
   }
 }

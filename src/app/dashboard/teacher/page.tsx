@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { Users, Video, Calendar, Plus, ChevronRight, Brain, AlertCircle, Info } from "lucide-react"
-import { doc, collection, query, where, getDocs, onSnapshot } from "firebase/firestore"
+import { doc, collection, query, where, getDocs } from "firebase/firestore"
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 
 export default function TeacherDashboard() {
@@ -18,18 +18,21 @@ export default function TeacherDashboard() {
   const [teacherAttempts, setTeacherAttempts] = useState<any[]>([])
   const [attemptsLoading, setAttemptsLoading] = useState(true)
 
+  // 1. Fetch User Profile
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "users", user.uid)
   }, [db, user?.uid])
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef)
 
+  // 2. Fetch Teacher's Classes
   const teacherClassesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return query(collection(db, "classes"), where("teacherId", "==", user.uid))
   }, [db, user?.uid])
   const { data: teacherClasses, isLoading: classesLoading } = useCollection(teacherClassesQuery)
 
+  // 3. Fetch Student Quiz Attempts
   useEffect(() => {
     if (!db || !user?.uid || classesLoading || !teacherClasses) {
       if (!classesLoading && teacherClasses?.length === 0) {
@@ -56,16 +59,22 @@ export default function TeacherDashboard() {
       try {
         const allAttempts: any[] = []
         for (const studentId of Array.from(studentIds)) {
-          const attemptsSnap = await getDocs(
-            query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
-          )
-          attemptsSnap.forEach(doc => {
-            allAttempts.push({ id: doc.id, ...doc.data() })
-          })
+          // Wrapped in try/catch to prevent one student's failure from stopping the whole list
+          try {
+            const attemptsSnap = await getDocs(
+              query(collection(db, "users", studentId, "quizAttempts"), where("teacherId", "==", user.uid))
+            )
+            attemptsSnap.forEach(doc => {
+              allAttempts.push({ id: doc.id, ...doc.data() })
+            })
+          } catch (err) {
+            // Silently continue if we can't access a specific student's record
+            console.warn(`Could not access records for student ${studentId}:`, err)
+          }
         }
         setTeacherAttempts(allAttempts)
       } catch (error) {
-        console.error("Error fetching teacher attempts:", error)
+        console.error("Critical error in fetchAttempts loop:", error)
       } finally {
         setAttemptsLoading(false)
       }
