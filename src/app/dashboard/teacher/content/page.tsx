@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -5,8 +6,8 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2 } from "lucide-react"
-import { collectionGroup, query, where, doc, deleteDoc, collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore"
+import { FileText, Plus, Search, Sparkles, Trash2, ExternalLink, Loader2, Wand2 } from "lucide-react"
+import { collectionGroup, query, where, doc, deleteDoc, collection, addDoc } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
@@ -22,14 +23,23 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { generateStudyNotes } from "@/ai/flows/generate-study-notes"
 
 export default function TeacherContentPage() {
   const { user } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
+  
+  // State for manual upload
   const [isUploading, setIsUploading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [newNote, setNewNote] = useState({ title: "", classId: "", contentUrl: "" })
+
+  // State for AI Generation
+  const [isAiGenerating, setIsAiGenerating] = useState(false)
+  const [showAiGen, setShowAiGen] = useState(false)
+  const [aiTopic, setAiTopic] = useState("")
+  const [aiClassId, setAiClassId] = useState("")
 
   const contentQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -54,6 +64,47 @@ export default function TeacherContentPage() {
         description: error.message,
         variant: "destructive" 
       })
+    }
+  }
+
+  const handleAiGenerate = async () => {
+    if (!user || !aiTopic.trim() || !aiClassId) return
+    setIsAiGenerating(true)
+    try {
+      const selectedClass = classes?.find(c => c.id === aiClassId)
+      if (!selectedClass) throw new Error("Class not found")
+
+      // 1. Generate the notes content using AI
+      const result = await generateStudyNotes({ topic: aiTopic })
+      
+      // 2. Save the generated notes to Firestore
+      const notesRef = collection(db, "classes", aiClassId, "notes")
+      await addDoc(notesRef, {
+        title: `${aiTopic} - Study Notes`,
+        contentUrl: "data:text/markdown;base64," + btoa(result.notes), // Storing small markdown in URL for demo
+        classId: aiClassId,
+        teacherId: user.uid,
+        classTeacherId: user.uid,
+        classStudentIds: selectedClass.studentIds || [],
+        uploadDate: new Date().toISOString(),
+        isAIGenerated: true,
+        topics: [aiTopic]
+      })
+
+      toast({ 
+        title: "AI Notes Generated!", 
+        description: `Successfully created materials for ${selectedClass.name}.` 
+      })
+      setAiTopic("")
+      setShowAiGen(false)
+    } catch (error: any) {
+      toast({ 
+        title: "AI Generation Failed", 
+        description: error.message, 
+        variant: "destructive" 
+      })
+    } finally {
+      setIsAiGenerating(false)
     }
   }
 
@@ -95,57 +146,108 @@ export default function TeacherContentPage() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold font-headline">Content Library</h1>
-            <Dialog open={showUpload} onOpenChange={setShowUpload}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Upload Material
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Upload Study Material</DialogTitle>
-                  <DialogDescription>Share notes or documents with a specific class.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input 
-                      placeholder="Chapter 1: Intro to Physics" 
-                      value={newNote.title}
-                      onChange={e => setNewNote({...newNote, title: e.target.value})}
-                    />
+            <div className="flex gap-2">
+              <Dialog open={showAiGen} onOpenChange={setShowAiGen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-primary/20 hover:bg-primary/5">
+                    <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                    AI Generate Notes
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Wand2 className="h-5 w-5 text-primary" />
+                      AI Study Note Generator
+                    </DialogTitle>
+                    <DialogDescription>
+                      AI will create structured, detailed study notes based on your topic.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Topic or Subject</Label>
+                      <Input 
+                        placeholder="e.g. Photosynthesis, Civil War, Python Basics..." 
+                        value={aiTopic}
+                        onChange={e => setAiTopic(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Target Class</Label>
+                      <Select onValueChange={setAiClassId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select classroom..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes?.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Select Class</Label>
-                    <Select onValueChange={val => setNewNote({...newNote, classId: val})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a class..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classes?.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Resource URL (PDF/Markdown)</Label>
-                    <Input 
-                      placeholder="https://..." 
-                      value={newNote.contentUrl}
-                      onChange={e => setNewNote({...newNote, contentUrl: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleUpload} disabled={isUploading || !newNote.title || !newNote.classId}>
-                    {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <DialogFooter>
+                    <Button onClick={handleAiGenerate} disabled={isAiGenerating || !aiTopic.trim() || !aiClassId}>
+                      {isAiGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                      {isAiGenerating ? "Generating..." : "Generate & Post"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showUpload} onOpenChange={setShowUpload}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
                     Upload
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Upload Material</DialogTitle>
+                    <DialogDescription>Share external PDFs or slides.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Title</Label>
+                      <Input 
+                        placeholder="Lecture 1: Intro" 
+                        value={newNote.title}
+                        onChange={e => setNewNote({...newNote, title: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Class</Label>
+                      <Select onValueChange={val => setNewNote({...newNote, classId: val})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a class..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes?.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Resource URL</Label>
+                      <Input 
+                        placeholder="https://..." 
+                        value={newNote.contentUrl}
+                        onChange={e => setNewNote({...newNote, contentUrl: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleUpload} disabled={isUploading || !newNote.title || !newNote.classId}>
+                      {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Post Material
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </header>
         <main className="p-4 md:p-6 lg:p-8">
@@ -153,38 +255,52 @@ export default function TeacherContentPage() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <input 
               className="w-full bg-white border rounded-lg py-2 pl-10 text-sm focus:ring-2 ring-primary/20 outline-none"
-              placeholder="Search library..."
+              placeholder="Filter materials..."
             />
           </div>
 
           {isLoading ? (
             <div className="space-y-4">
-              {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+              {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
             </div>
           ) : !content || content.length === 0 ? (
             <div className="text-center py-24 bg-muted/5 rounded-2xl border-2 border-dashed">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="font-bold">No uploaded materials</h3>
-              <p className="text-sm text-muted-foreground">Upload study notes, PDFs, or slides to share with your classes.</p>
+              <h3 className="font-bold">Library is empty</h3>
+              <p className="text-sm text-muted-foreground">Start by using AI to generate notes or upload your own files.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {content.map(item => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border group">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded bg-primary/5 flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-primary" />
+                <Card key={item.id} className="border-none shadow-sm hover:shadow-md transition-all group overflow-hidden">
+                  <div className={`h-1.5 w-full ${item.isAIGenerated ? 'bg-primary' : 'bg-slate-300'}`} />
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <div className="h-8 w-8 rounded bg-primary/5 flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-primary" />
+                      </div>
+                      {item.isAIGenerated && (
+                        <div className="px-2 py-0.5 rounded-full bg-primary/10 text-[8px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+                          <Sparkles className="h-2 w-2" />
+                          AI Created
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold">{item.title}</h4>
-                      <p className="text-[10px] text-muted-foreground">Shared with class</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" onClick={() => window.open(item.contentUrl)}><ExternalLink className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(item.classId, item.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
+                    <CardTitle className="text-sm font-bold mt-2 truncate">{item.title}</CardTitle>
+                    <CardDescription className="text-[10px] flex items-center gap-1">
+                      Posted {item.uploadDate ? new Date(item.uploadDate).toLocaleDateString() : "Recently"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex gap-2">
+                    <Button variant="secondary" size="sm" className="flex-1 h-8 text-[10px]" onClick={() => window.open(item.contentUrl)}>
+                      <ExternalLink className="mr-1.5 h-3 w-3" />
+                      View
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(item.classId, item.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}

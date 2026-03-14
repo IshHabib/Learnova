@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -6,7 +7,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Users, Calendar, MoreVertical, Loader2 } from "lucide-react"
+import { Plus, Users, Calendar, MoreVertical, Loader2, Copy, Check } from "lucide-react"
 import { collection, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -22,12 +23,15 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
+import { useToast } from "@/hooks/use-toast"
 
 export default function TeacherClassesPage() {
   const { user } = useUser()
   const db = useFirestore()
+  const { toast } = useToast()
   const [isCreating, setIsCreating] = useState(false)
   const [newClass, setNewClass] = useState({ name: "", subject: "", description: "" })
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const classesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -52,11 +56,19 @@ export default function TeacherClassesPage() {
         createdAt: serverTimestamp()
       })
       setNewClass({ name: "", subject: "", description: "" })
-    } catch (error) {
-      console.error("Error creating class:", error)
+      toast({ title: "Class created successfully!" })
+    } catch (error: any) {
+      toast({ title: "Failed to create class", description: error.message, variant: "destructive" })
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const copyToClipboard = (id: string) => {
+    navigator.clipboard.writeText(id)
+    setCopiedId(id)
+    toast({ title: "Class ID copied!", description: "Share this with your students so they can join." })
+    setTimeout(() => setCopiedId(null), 3000)
   }
 
   return (
@@ -121,55 +133,68 @@ export default function TeacherClassesPage() {
           </div>
         </header>
         <main className="p-4 md:p-6 lg:p-8">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="relative flex-1 max-w-sm">
-              <Input placeholder="Search your classes..." className="pl-10" />
-              <Users className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            </div>
-          </div>
-
           {isLoading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-56 rounded-xl" />)}
+              {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-64 rounded-xl" />)}
             </div>
           ) : !myClasses || myClasses.length === 0 ? (
-            <div className="text-center py-24 border-2 border-dashed rounded-2xl">
+            <div className="text-center py-24 border-2 border-dashed rounded-2xl bg-muted/5">
               <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="h-8 w-8" />
               </div>
               <h3 className="text-lg font-bold">No active classes</h3>
-              <p className="text-muted-foreground mb-6">Start by creating your first digital classroom.</p>
+              <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Start by creating your first digital classroom to begin your adaptive teaching journey.</p>
+              <Button onClick={() => document.querySelector('[data-state="closed"]')?.dispatchEvent(new MouseEvent('click'))}>
+                Create Your First Class
+              </Button>
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {myClasses.map((cls) => (
-                <Card key={cls.id} className="group hover:ring-2 ring-primary/20 transition-all border-none shadow-sm">
+                <Card key={cls.id} className="group hover:ring-2 ring-primary/20 transition-all border-none shadow-sm overflow-hidden flex flex-col">
+                  <div className="h-2 bg-primary" />
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                      <div className="px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider mb-2">
+                      <div className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-wider mb-2">
                         {cls.subject}
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </div>
-                    <CardTitle className="font-headline text-lg">{cls.name}</CardTitle>
-                    <CardDescription className="text-xs line-clamp-1">{cls.description || "Active session"}</CardDescription>
+                    <CardTitle className="font-headline text-lg line-clamp-1">{cls.name}</CardTitle>
+                    <CardDescription className="text-xs line-clamp-2 min-h-[2.5rem]">{cls.description || "Digital classroom environment for adaptive learning."}</CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-4 border-t space-y-4">
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
+                  <CardContent className="pt-4 border-t mt-auto space-y-4">
+                    <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" />
                         <span>{cls.studentIds?.length || 0} Enrolled</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>Created {cls.creationDate ? format(new Date(cls.creationDate), "MMM d") : "recently"}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Joined {cls.creationDate ? format(new Date(cls.creationDate), "MMM d") : "Recently"}</span>
                       </div>
                     </div>
+                    
+                    <div className="p-3 rounded-lg bg-slate-50 border flex items-center justify-between group/id">
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Class Join ID</p>
+                        <p className="text-xs font-mono font-semibold">{cls.id}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7" 
+                        onClick={() => copyToClipboard(cls.id)}
+                      >
+                        {copiedId === cls.id ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">Manage</Button>
-                      <Button size="sm" className="flex-1">Add Content</Button>
+                      <Button variant="outline" size="sm" className="flex-1 text-xs">Manage</Button>
+                      <Button size="sm" className="flex-1 text-xs" onClick={() => window.location.href='/dashboard/teacher/content'}>Add Content</Button>
                     </div>
                   </CardContent>
                 </Card>
