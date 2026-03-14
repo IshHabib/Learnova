@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -48,7 +49,7 @@ export default function StudentQuizzesPage() {
   const [topic, setTopic] = useState("")
   const [showGenDialog, setShowGenDialog] = useState(false)
 
-  // State for Active Quiz
+  // State for Active Quiz (Session)
   const [activeQuiz, setActiveQuiz] = useState<GeneratePracticeQuizOutput | null>(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({})
@@ -120,7 +121,8 @@ export default function StudentQuizzesPage() {
 
     try {
       const attemptRef = doc(db, "users", user.uid, "quizAttempts", attemptId)
-      // We save the questions and selected answers so we can re-view them later
+      
+      // Critical: Save all question data including explanations for later review
       await setDoc(attemptRef, {
         id: attemptId,
         studentId: user.uid,
@@ -129,7 +131,7 @@ export default function StudentQuizzesPage() {
         submissionDate: new Date().toISOString(),
         feedback: `You got ${correctCount} out of ${activeQuiz.questions.length} correct.`,
         title: activeQuiz.quizTitle,
-        questions: activeQuiz.questions,
+        questions: activeQuiz.questions, // Ensuring the full array of questions is saved
         userAnswers: selectedAnswers
       })
       
@@ -148,10 +150,15 @@ export default function StudentQuizzesPage() {
   }
 
   const handleViewPastAttempt = (attempt: any) => {
-    // Reconstruct the quiz state from the saved attempt
+    // Reconstruct the quiz state from the saved attempt document
+    if (!attempt.questions || attempt.questions.length === 0) {
+      toast({ title: "Cannot load review", description: "This attempt doesn't contain question data.", variant: "destructive" })
+      return
+    }
+
     setActiveQuiz({
       quizTitle: attempt.title || "Practice Quiz",
-      questions: attempt.questions || []
+      questions: attempt.questions
     })
     setSelectedAnswers(attempt.userAnswers || {})
     setFinalScore(attempt.score || 0)
@@ -170,62 +177,80 @@ export default function StudentQuizzesPage() {
             <SidebarTrigger className="-ml-1" />
             <h1 className="text-lg font-semibold font-headline">Results: {activeQuiz.quizTitle}</h1>
           </header>
-          <main className="p-4 md:p-6 lg:p-8">
-            <div className="max-w-3xl mx-auto space-y-6">
-              <Card className="bg-primary text-primary-foreground">
-                <CardContent className="pt-6 text-center">
-                  <Trophy className="h-12 w-12 mx-auto mb-2 opacity-80" />
-                  <h2 className="text-3xl font-bold mb-1">{finalScore}%</h2>
-                  <p className="opacity-90">Review your performance below.</p>
-                  <Button variant="secondary" className="mt-4" onClick={() => {
+          <main className="p-4 md:p-6 lg:p-8 overflow-auto">
+            <div className="max-w-3xl mx-auto space-y-8 pb-12">
+              <Card className="bg-primary text-primary-foreground border-none shadow-xl">
+                <CardContent className="pt-8 text-center">
+                  <Trophy className="h-16 w-16 mx-auto mb-4 opacity-80" />
+                  <div className="space-y-1 mb-6">
+                    <h2 className="text-4xl font-extrabold">{finalScore}%</h2>
+                    <p className="text-sm opacity-90 font-medium">Performance Score</p>
+                  </div>
+                  <Button variant="secondary" onClick={() => {
                     setActiveQuiz(null)
                     setShowReview(false)
                   }}>
-                    Back to Quizzes
+                    Back to All Quizzes
                   </Button>
                 </CardContent>
               </Card>
 
-              <div className="space-y-4">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <Info className="h-5 w-5" />
-                  Detailed Review
-                </h3>
-                {activeQuiz.questions.map((q, idx) => {
-                  const isCorrect = selectedAnswers[idx] === q.correctAnswer
-                  return (
-                    <Card key={idx} className={`border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-4">
-                          <p className="font-medium">{idx + 1}. {q.questionText}</p>
-                          {isCorrect ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-red-500 shrink-0" />
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                          <div className={`p-2 rounded ${isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
-                            <span className="font-bold block text-xs uppercase opacity-60">Your Answer</span>
-                            {selectedAnswers[idx] || "No answer provided"}
-                          </div>
-                          {!isCorrect && (
-                            <div className="p-2 rounded bg-green-50">
-                              <span className="font-bold block text-xs uppercase opacity-60">Correct Answer</span>
-                              {q.correctAnswer}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Info className="h-4 w-4 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-xl font-headline">Detailed Review</h3>
+                </div>
+                
+                <div className="grid gap-6">
+                  {activeQuiz.questions.map((q, idx) => {
+                    const isCorrect = selectedAnswers[idx] === q.correctAnswer
+                    return (
+                      <Card key={idx} className={`border-none shadow-sm overflow-hidden border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
+                        <CardHeader className="bg-slate-50/50 pb-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Question {idx + 1}</span>
+                              <p className="font-semibold text-foreground leading-relaxed">{q.questionText}</p>
                             </div>
-                          )}
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded-lg text-sm italic text-muted-foreground border">
-                          <span className="font-bold text-xs uppercase block not-italic mb-1">Explanation</span>
-                          {q.explanation}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+                            {isCorrect ? (
+                              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              </div>
+                            ) : (
+                              <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                <XCircle className="h-5 w-5 text-red-600" />
+                              </div>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-6 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className={`p-4 rounded-xl border-2 ${isCorrect ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
+                              <span className="font-bold block text-[10px] uppercase text-muted-foreground mb-1">Your Selection</span>
+                              <p className={`text-sm font-medium ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                                {selectedAnswers[idx] || "No answer provided"}
+                              </p>
+                            </div>
+                            {!isCorrect && (
+                              <div className="p-4 rounded-xl border-2 bg-green-50 border-green-100">
+                                <span className="font-bold block text-[10px] uppercase text-muted-foreground mb-1">Correct Answer</span>
+                                <p className="text-sm font-medium text-green-800">{q.correctAnswer}</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+                            <span className="font-bold text-[10px] uppercase text-primary block mb-2">Explanation</span>
+                            <p className="text-sm text-slate-700 leading-relaxed italic">
+                              {q.explanation}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </main>
@@ -234,7 +259,7 @@ export default function StudentQuizzesPage() {
     )
   }
 
-  // Active Quiz Screen
+  // Active Quiz Screen (Player)
   if (activeQuiz) {
     const currentQ = activeQuiz.questions[currentQuestionIndex]
     return (
@@ -244,9 +269,9 @@ export default function StudentQuizzesPage() {
           <div className="flex flex-col h-full bg-slate-50/50">
             <header className="h-16 border-b bg-white flex items-center justify-between px-6">
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" onClick={() => setActiveQuiz(null)}>Exit</Button>
+                <Button variant="ghost" size="sm" onClick={() => setActiveQuiz(null)}>Exit Quiz</Button>
                 <div className="h-4 w-px bg-slate-200" />
-                <h2 className="font-semibold text-sm">{activeQuiz.quizTitle}</h2>
+                <h2 className="font-semibold text-sm truncate max-w-[200px]">{activeQuiz.quizTitle}</h2>
               </div>
               <div className="flex items-center gap-2">
                 <Timer className="h-4 w-4 text-muted-foreground" />
@@ -254,39 +279,42 @@ export default function StudentQuizzesPage() {
               </div>
             </header>
 
-            <main className="flex-1 p-6 flex flex-col items-center">
-              <div className="w-full max-w-2xl">
-                <Progress value={progress} className="mb-8 h-2" />
+            <main className="flex-1 p-6 flex flex-col items-center overflow-auto">
+              <div className="w-full max-w-2xl pt-4">
+                <Progress value={progress} className="mb-10 h-2 bg-slate-200" />
                 
-                <Card className="border-none shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="text-lg leading-relaxed">
+                <Card className="border-none shadow-xl bg-white mb-20">
+                  <CardHeader className="pb-8">
+                    <CardTitle className="text-xl leading-relaxed text-slate-800 font-headline">
                       {currentQ.questionText}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pb-8">
                     <RadioGroup 
                       value={selectedAnswers[currentQuestionIndex]} 
                       onValueChange={(val) => setSelectedAnswers(prev => ({...prev, [currentQuestionIndex]: val}))}
                       className="space-y-3"
                     >
                       {currentQ.options?.map((opt, i) => (
-                        <div key={i} className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedAnswers[currentQuestionIndex] === opt ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200"}`}>
-                          <RadioGroupItem value={opt} id={`q-${i}`} />
-                          <Label htmlFor={`q-${i}`} className="flex-1 cursor-pointer font-medium">{opt}</Label>
+                        <div key={i} className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer group ${selectedAnswers[currentQuestionIndex] === opt ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}>
+                          <RadioGroupItem value={opt} id={`q-${i}`} className="text-primary border-slate-300" />
+                          <Label htmlFor={`q-${i}`} className="flex-1 cursor-pointer font-medium text-slate-700 group-hover:text-slate-900">{opt}</Label>
                         </div>
                       ))}
                     </RadioGroup>
                   </CardContent>
-                  <CardFooter className="flex justify-between border-t p-6">
-                    <Button variant="ghost" onClick={handleBack} disabled={currentQuestionIndex === 0}>Previous</Button>
+                  <CardFooter className="flex justify-between border-t p-6 bg-slate-50/50">
+                    <Button variant="ghost" onClick={handleBack} disabled={currentQuestionIndex === 0}>Back</Button>
                     {currentQuestionIndex === activeQuiz.questions.length - 1 ? (
-                      <Button onClick={handleSubmit} disabled={isSubmitting || !selectedAnswers[currentQuestionIndex]}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Button onClick={handleSubmit} disabled={isSubmitting || !selectedAnswers[currentQuestionIndex]} className="px-8 shadow-md">
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                         Submit Quiz
                       </Button>
                     ) : (
-                      <Button onClick={handleNext} disabled={!selectedAnswers[currentQuestionIndex]}>Next Question</Button>
+                      <Button onClick={handleNext} disabled={!selectedAnswers[currentQuestionIndex]} className="px-8">
+                        Next Question
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
                     )}
                   </CardFooter>
                 </Card>
@@ -317,15 +345,15 @@ export default function StudentQuizzesPage() {
                 <DialogHeader>
                   <DialogTitle>Generate Practice Quiz</DialogTitle>
                   <DialogDescription>
-                    What topic would you like to be tested on?
+                    What topic would you like to be tested on? AI will generate a set of questions for you.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="topic">Topic</Label>
+                    <Label htmlFor="topic">Quiz Topic</Label>
                     <Input 
                       id="topic" 
-                      placeholder="e.g. Quantum Physics, History of Rome..." 
+                      placeholder="e.g. World War II, React Hooks, Biology basics..." 
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
                     />
@@ -334,7 +362,7 @@ export default function StudentQuizzesPage() {
                 <DialogFooter>
                   <Button onClick={handleGenerate} disabled={isGenerating || !topic.trim()}>
                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
-                    Generate
+                    {isGenerating ? "Generating Questions..." : "Generate & Start"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -344,39 +372,48 @@ export default function StudentQuizzesPage() {
 
         <main className="p-4 md:p-6 lg:p-8 space-y-8">
           <div>
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Quiz History</h2>
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Learning History</h2>
             {isLoading ? (
-              <div className="space-y-3">
-                {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+              <div className="space-y-4">
+                {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
               </div>
             ) : !attempts || attempts.length === 0 ? (
-              <div className="p-12 text-center border rounded-xl bg-card">
-                <BookOpen className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">You haven't completed any quizzes yet.</p>
+              <div className="py-20 text-center border-2 border-dashed rounded-2xl bg-slate-50/50">
+                <div className="h-16 w-16 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="h-8 w-8 text-primary opacity-40" />
+                </div>
+                <h3 className="font-semibold text-slate-700">No assessments yet</h3>
+                <p className="text-sm text-muted-foreground max-w-[250px] mx-auto mt-2">Generate your first AI practice quiz to start measuring your proficiency.</p>
+                <Button variant="outline" className="mt-6" onClick={() => setShowGenDialog(true)}>Create First Quiz</Button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid gap-3">
                 {attempts.map((attempt) => (
                   <div 
                     key={attempt.id} 
-                    className="group flex items-center justify-between p-4 rounded-xl bg-white shadow-sm border hover:border-primary/20 transition-all cursor-pointer"
+                    className="group flex items-center justify-between p-5 rounded-2xl bg-white shadow-sm border border-transparent hover:border-primary/20 hover:shadow-md transition-all cursor-pointer"
                     onClick={() => handleViewPastAttempt(attempt)}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${attempt.score >= 70 ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`}>
-                        {attempt.score >= 70 ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                      <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${attempt.score >= 70 ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`}>
+                        {attempt.score >= 70 ? <CheckCircle2 className="h-6 w-6" /> : <AlertCircle className="h-6 w-6" />}
                       </div>
                       <div>
-                        <h4 className="font-semibold text-sm">{attempt.title || "Practice Quiz"}</h4>
-                        <p className="text-xs text-muted-foreground">{attempt.submissionDate ? format(new Date(attempt.submissionDate), "PPP p") : "Unknown Date"}</p>
+                        <h4 className="font-bold text-slate-800 text-sm md:text-base group-hover:text-primary transition-colors">{attempt.title || "Practice Quiz"}</h4>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                          <Timer className="h-3 w-3" />
+                          {attempt.submissionDate ? format(new Date(attempt.submissionDate), "MMM d, yyyy • h:mm a") : "Unknown Date"}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-8">
                       <div className="text-right hidden sm:block">
-                        <span className="text-xl font-bold font-headline">{attempt.score}%</span>
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase">Score</p>
+                        <span className="text-2xl font-black font-headline text-slate-800">{attempt.score}%</span>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Score</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-primary transition-colors" />
+                      <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                        <ChevronRight className="h-5 w-5" />
+                      </div>
                     </div>
                   </div>
                 ))}
