@@ -7,9 +7,10 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Brain, Send, User, Sparkles, Wand2, BookText, Lightbulb, Loader2 } from "lucide-react"
+import { Send, User, Sparkles, Wand2, Lightbulb, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { aiLearningAssistant } from "@/ai/flows/ai-learning-assistant"
+import { Logo } from "@/components/ui/logo"
 
 export default function AIAssistantPage() {
   const [messages, setMessages] = useState([
@@ -49,7 +50,7 @@ export default function AIAssistantPage() {
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white/50 backdrop-blur">
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-1 items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
+            <Logo size={24} />
             <h1 className="text-lg font-semibold font-headline">AI Tutor</h1>
           </div>
         </header>

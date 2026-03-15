@@ -18,6 +18,12 @@
       "description": "Teacher using a dashboard",
       "imageUrl": "https://picsum.photos/seed/edtech3/800/600",
       "imageHint": "teacher dashboard"
+    },
+    {
+      "id": "learnova-logo",
+      "description": "Learnova brain branding logo",
+      "imageUrl": "https://picsum.photos/seed/learnova-logo/512/512",
+      "imageHint": "education logo"
     }
   ]
 }

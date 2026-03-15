@@ -1,7 +1,9 @@
+
 import Link from "next/link"
 import { Brain, GraduationCap, ChevronRight, CheckCircle2, Zap, BarChart3, Users, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Logo } from "@/components/ui/logo"
 
 export default function LandingPage() {
   return (
@@ -9,7 +11,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 mx-auto">
           <div className="flex items-center gap-2">
-            <Brain className="h-8 w-8 text-primary" />
+            <Logo size={32} />
             <span className="text-xl font-bold font-headline text-foreground">Learnova</span>
           </div>
           <nav className="hidden md:flex gap-6">
@@ -90,7 +92,7 @@ export default function LandingPage() {
       <footer className="bg-card border-t py-12">
         <div className="container px-4 sm:px-6 lg:px-8 text-center text-muted-foreground mx-auto">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Brain className="h-6 w-6 text-primary" />
+            <Logo size={24} />
             <span className="text-lg font-bold font-headline text-foreground">Learnova</span>
           </div>
           <p className="text-sm">© 2024 Learnova AI. All rights reserved.</p>

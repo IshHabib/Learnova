@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/ui/logo"
 
 export function AppSidebar({ role = "student", ...props }: React.ComponentProps<typeof Sidebar> & { role?: "student" | "teacher" }) {
   const [userName, setUserName] = React.useState("User")
@@ -43,7 +45,6 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserName(user.displayName || "User")
-        // Added error callback to snapshot listener to prevent unhandled exceptions
         const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
           if (doc.exists()) {
             const data = doc.data()
@@ -96,7 +97,7 @@ export function AppSidebar({ role = "student", ...props }: React.ComponentProps<
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Brain className="size-5" />
+                <Logo size={20} />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold text-foreground">Learnova</span>

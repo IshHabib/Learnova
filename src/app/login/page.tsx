@@ -4,7 +4,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Brain, Lock, Mail, ChevronRight } from "lucide-react"
+import { Lock, Mail, ChevronRight } from "lucide-react"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { Logo } from "@/components/ui/logo"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -65,7 +66,6 @@ export default function LoginPage() {
         const userData = userDoc.data()
         router.push(`/dashboard/${userData.role}`)
       } else {
-        // First time Google user - initialize profile with selected role
         await setDoc(userDocRef, {
           id: user.uid,
           email: user.email,
@@ -90,8 +90,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-xl border-none">
         <CardHeader className="space-y-1 flex flex-col items-center">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Brain className="h-8 w-8 text-primary" />
+          <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center mb-4">
+            <Logo size={40} />
           </div>
           <CardTitle className="text-2xl font-headline">Welcome back</CardTitle>
           <CardDescription>Enter your credentials to access Learnova</CardDescription>
